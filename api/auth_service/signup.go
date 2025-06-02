@@ -1,26 +1,26 @@
 package authservice
 
 import (
-	"fmt"
+	"errors"
+	"regexp"
 
-	"github.com/abdullahshafaqat/Go_ChatApp.git/models"
+	"github.com/abdullahshafaqat/Go_Chat_App.git/models"
 	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
 )
 
-func (s *AuthService) SignUp(c *gin.Context, req *models.UserSignup) *models.UserSignup {
-
-	User := s.userAuth.SignUp(c, req)
-
-	if User == nil {
-		fmt.Println("signup error")
-		return nil
+func (s *serviceImpl) SignUp(c *gin.Context, Newuser *models.UserSignup) error {
+	if !isGmail(Newuser.Email) {
+		return errors.New("please enter valid email address")
 	}
-
-	res := models.UserSignup{
-		Email:    User.Email,
-		Password: User.Password,
-		Message:  "User created successfully",
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(Newuser.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return err
 	}
+	Newuser.Password = string(hashedPassword)
+	return s.db.CreateUser(c, Newuser)
+}
 
-	return &res
+func isGmail(email string) bool {
+	return regexp.MustCompile(`^[^@]+@gmail\.com$`).MatchString(email)
 }

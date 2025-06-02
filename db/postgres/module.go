@@ -1,22 +1,20 @@
 package db
 
 import (
-	"github.com/abdullahshafaqat/Go_ChatApp.git/models"
+	"github.com/abdullahshafaqat/Go_Chat_App.git/models"
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
 )
 
-type DBStorage interface {
-	SignUp(c *gin.Context, req *models.UserSignup) *models.UserSignup
+type DB interface {
+	CreateUser(c *gin.Context, user *models.UserSignup) error
+	GetUserByEmail(c *gin.Context, email string) (*models.UserLogin, error)
 }
 
-type StorageImpl struct {
+type dbImpl struct {
 	db *sqlx.DB
 }
 
-func NewStorage(db *sqlx.DB) DBStorage {
-	return &StorageImpl{
-		db: db,
-	}
-
+func NewDB(db *sqlx.DB) DB {
+	return &dbImpl{db: db}
 }

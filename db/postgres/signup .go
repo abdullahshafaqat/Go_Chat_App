@@ -1,25 +1,23 @@
 package db
 
 import (
-	"net/http"
+	"errors"
 
-	"github.com/abdullahshafaqat/Go_ChatApp.git/models"
+	"github.com/abdullahshafaqat/Go_Chat_App.git/models"
 	"github.com/gin-gonic/gin"
 )
 
-func (d *StorageImpl) SignUp(c *gin.Context, req *models.UserSignup) *models.UserSignup {
-
-	err := d.db.QueryRow("SELECT email FROM users WHERE email = $1", &req.Email).Scan(&req.Email)
+func (d *dbImpl) CreateUser(c *gin.Context, user *models.UserSignup) error {
+	var exist string
+	err := d.db.QueryRow("SELECT email FROM signup WHERE email = $1", user.Email).Scan(&exist)
 	if err == nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "User already exists with this email"})
-		return nil
+		return errors.New("user already exists with this email")
 	}
-	_, err = d.db.Exec("INSERT INTO users (email, password) VALUES ($1, $2)", &req.Email, &req.Password)
+	query := `INSERT INTO signup (username, email, password) VALUES ($1, $2, $3) RETURNING id`
+	err = d.db.QueryRowxContext(c, query, user.Username, user.Email, user.Password).Scan(&user.ID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
-		return nil
+		return err
 	}
 
-	return req
-
+	return nil
 }

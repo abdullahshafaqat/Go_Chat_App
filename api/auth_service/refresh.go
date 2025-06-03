@@ -2,20 +2,16 @@ package authservice
 
 import (
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
 
-var accessKey = []byte(os.Getenv("AC_SECRET"))
-var refreshKey = []byte(os.Getenv("RF_SECRET"))
-
-func GenerateTokens(ID string) (string, string, error) {
+func (s *serviceImpl) GenerateTokens(ID string) (string, string, error) {
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"ID":   ID,
 		"type": "access",
-		"exp":  time.Now().Add(time.Minute * 15).Unix(),
+		"exp":  time.Now().Add(time.Minute * 1).Unix(),
 	})
 	accessTokenString, err := accessToken.SignedString(accessKey)
 	if err != nil {
@@ -50,7 +46,7 @@ func VerifyToken(tokenString string) error {
 
 	return nil
 }
-func VerifyRefreshToken(tokenString string) (string, error) {
+func (s *serviceImpl) VerifyRefreshToken(tokenString string) (string, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		return refreshKey, nil
 	})

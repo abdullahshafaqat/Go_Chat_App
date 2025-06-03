@@ -1,7 +1,7 @@
 package router
 
 import (
-	"github.com/abdullahshafaqat/Go_Chat_App.git/models"
+	authservice "github.com/abdullahshafaqat/Go_Chat_App.git/api/auth_service"
 	"github.com/gin-gonic/gin"
 )
 
@@ -10,14 +10,12 @@ type Router interface {
 }
 
 type routerImpl struct {
-	service Service
+	authservice authservice.Service
 }
 
-type Service interface {
-	SignUp(c *gin.Context, user *models.UserSignup) error
-	Login(c *gin.Context, login *models.UserLogin) error
-}
+func NewRouter(authservice authservice.Service) Router {
+	return &routerImpl{
 
-func NewRouter(service Service) Router {
-	return &routerImpl{service: service}
+		authservice: authservice,
+	}
 }

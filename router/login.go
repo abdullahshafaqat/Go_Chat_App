@@ -15,19 +15,18 @@ func (r *routerImpl) Login(c *gin.Context) {
 		return
 	}
 
-	if err := r.service.Login(c, &User); err != nil {
+	if err := r.authservice.Login(c, &User); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	access, refresh, err :=
-		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{
-			"access_token":  access,
-			"refresh_token": refresh,
-		})
+	access, refresh, err := r.authservice.GenerateTokens(User.ID)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
 	}
-
+	c.JSON(http.StatusOK, gin.H{
+		"access_token":  access,
+		"refresh_token": refresh,
+	})
+}

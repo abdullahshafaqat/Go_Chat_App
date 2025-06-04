@@ -13,6 +13,7 @@ func (s *serviceImpl) GenerateTokens(ID string) (string, string, error) {
 		"type": "access",
 		"exp":  time.Now().Add(time.Minute * 1).Unix(),
 	})
+	fmt.Println("Generating tokens for ID:", ID)
 	accessTokenString, err := accessToken.SignedString(accessKey)
 	if err != nil {
 		return "", "", err
@@ -29,6 +30,7 @@ func (s *serviceImpl) GenerateTokens(ID string) (string, string, error) {
 	}
 
 	return accessTokenString, refreshTokenString, nil
+
 }
 
 func VerifyToken(tokenString string) error {

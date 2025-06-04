@@ -1,6 +1,7 @@
 package authservice
 
 import (
+	db "github.com/abdullahshafaqat/Go_Chat_App.git/db/postgres"
 	"github.com/abdullahshafaqat/Go_Chat_App.git/models"
 	"github.com/gin-gonic/gin"
 )
@@ -15,15 +16,9 @@ type Service interface {
 }
 
 type serviceImpl struct {
-	db interface {
-		CreateUser(c *gin.Context, user *models.UserSignup) error
-		GetUserByEmail(c *gin.Context, email string) (*models.UserLogin, error)
-	}
+	database db.DB
 }
 
-func NewAuthService(db interface {
-	CreateUser(c *gin.Context, user *models.UserSignup) error
-	GetUserByEmail(c *gin.Context, email string) (*models.UserLogin, error)
-}) Service {
-	return &serviceImpl{db: db}
+func NewAuthService(db db.DB) Service {
+	return &serviceImpl{database: db}
 }

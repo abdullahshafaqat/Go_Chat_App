@@ -18,7 +18,7 @@ func (s *serviceImpl) SignUp(c *gin.Context, Newuser *models.UserSignup) error {
 		return err
 	}
 	Newuser.Password = string(hashedPassword)
-	return s.db.CreateUser(c, Newuser)
+	return s.database.CreateUser(c, Newuser)
 }
 
 func isGmail(email string) bool {

@@ -1,21 +1,20 @@
 package db
 
-import (
-	"log"
-
-	"github.com/abdullahshafaqat/Go_Chat_App.git/models"
-	"github.com/gin-gonic/gin"
-)
-
-func (d *dbImpl) GetUserByEmail(c *gin.Context, email string) (*models.UserLogin, error) {
-	var user models.UserLogin
-
-	err := d.db.QueryRow("SELECT id, email, password FROM signup WHERE email=$1", email).Scan(&user.ID, &user.Email, &user.Password)
+func (d *dbImpl) GetID(email string) (string, error) {
+	var id string
+	query := `SELECT id FROM signup WHERE email = $1`
+	err := d	.db.QueryRow(query, email).Scan(&id)
 	if err != nil {
-		log.Fatal("Error: User not exist")
-		return nil, err
+		return "", err
 	}
-
-	return &user, nil
-
+	return id, nil
+}
+func (d *dbImpl) GetUserByEmail(email string) (string, string, error) {
+	var id, password string
+	query := `SELECT id, password FROM signup WHERE email = $1`
+	err := d.db.QueryRow(query, email).Scan(&id, &password)
+	if err != nil {
+		return "", "", err
+	}
+	return id, password, nil
 }

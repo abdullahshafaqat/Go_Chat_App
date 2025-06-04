@@ -8,7 +8,8 @@ import (
 
 type DB interface {
 	CreateUser(c *gin.Context, user *models.UserSignup) error
-	GetUserByEmail(c *gin.Context, email string) (*models.UserLogin, error)
+	GetUserByEmail(email string) (string, string, error)
+	GetID(email string) (string, error)
 }
 
 type dbImpl struct {

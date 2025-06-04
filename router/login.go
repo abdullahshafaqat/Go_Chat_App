@@ -19,7 +19,6 @@ func (r *routerImpl) Login(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-
 	access, refresh, err := r.authservice.GenerateTokens(User.ID)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})

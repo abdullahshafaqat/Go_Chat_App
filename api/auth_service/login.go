@@ -9,14 +9,16 @@ import (
 )
 
 func (s *serviceImpl) Login(c *gin.Context, login *models.UserLogin) error {
-	User, err := s.db.GetUserByEmail(c, login.Email)
+
+	id, dbPassword, err := s.database.GetUserByEmail(login.Email)
 	if err != nil {
 		return errors.New("user not found")
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(User.Password), []byte(login.Password)); err != nil {
+
+	if err := bcrypt.CompareHashAndPassword([]byte(dbPassword), []byte(login.Password)); err != nil {
 		return errors.New("invalid password")
 	}
-
+	login.ID = id
 	return nil
 }

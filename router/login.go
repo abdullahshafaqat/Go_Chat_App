@@ -19,13 +19,13 @@ func (r *routerImpl) Login(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	access, refresh, err := r.authservice.GenerateTokens(User.ID)
+	Access, refresh, err := r.authservice.GenerateTokens(User.ID)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
-		"access_token":  access,
+		"access_token":  Access,
 		"refresh_token": refresh,
 	})
 }

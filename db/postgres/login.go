@@ -3,7 +3,7 @@ package db
 func (d *dbImpl) GetID(email string) (string, error) {
 	var id string
 	query := `SELECT id FROM signup WHERE email = $1`
-	err := d	.db.QueryRow(query, email).Scan(&id)
+	err := d.db.QueryRow(query, email).Scan(&id)
 	if err != nil {
 		return "", err
 	}

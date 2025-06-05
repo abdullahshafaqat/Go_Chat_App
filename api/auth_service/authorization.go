@@ -2,6 +2,7 @@ package authservice
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"strings"
 
@@ -38,18 +39,20 @@ func (s *serviceImpl) Authorize(token string) (bool, string, error) {
 		return false, "", fmt.Errorf("missing or invalid authorization header")
 	}
 
-	if token, err := parseToken(tokenString, accessKey); err == nil {
-		if TokenType(token, "access") {
-			return true, "access", nil
-		}
+	// Check Access Token
+	accessToken, err := parseToken(tokenString, accessKey)
+	if err == nil && TokenType(accessToken, "access") {
+		return true, "access", nil
+	} else if err != nil {
+		log.Printf("Access token error: %v", err) // Debug log
 	}
 
-	if token, err := parseToken(tokenString, refreshKey); err == nil {
-		if TokenType(token, "refresh") {
-			return false, "refresh token ", nil
-		}
-	} else if strings.Contains(err.Error(), "expired") {
-		return false, "", fmt.Errorf("token is expired")
+	// Check Refresh Token
+	refreshToken, err := parseToken(tokenString, refreshKey)
+	if err == nil && TokenType(refreshToken, "refresh") {
+		return false, "refresh token", nil
+	} else if err != nil {
+		log.Printf("Refresh token error: %v", err) // Debug log
 	}
 
 	return false, "", fmt.Errorf("invalid token")

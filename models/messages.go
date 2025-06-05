@@ -13,3 +13,4 @@ type Message struct {
 	Message    string             `json:"message" bson:"message"`
 	Timestamp  time.Time          `json:"timestamp,omitempty" bson:"timestamp,omitempty"`
 }
+

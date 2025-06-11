@@ -3,13 +3,11 @@ package router
 import (
 	"net/http"
 	"strconv"
-	"time"
 
-	"github.com/abdullahshafaqat/Go_Chat_App.git/models"
 	"github.com/gin-gonic/gin"
 )
 
-func (r *routerImpl) SendMessage(c *gin.Context) {
+func (r *routerImpl) GetMessages(c *gin.Context) {
 	authHeader := c.GetHeader("Authorization")
 	tokenString := r.authservice.BearerToken(authHeader)
 
@@ -18,31 +16,21 @@ func (r *routerImpl) SendMessage(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
-
 	isValid, _, err := r.authservice.Authorize(tokenString)
 	if err != nil || !isValid {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
 
-	var msg models.Message
-	if err := c.ShouldBindJSON(&msg); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid input"})
-		return
-	}
-
-	msg.SenderID, err = strconv.Atoi(userID)
+	senderID, err := strconv.Atoi(userID)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid user ID "})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user ID "})
 		return
 	}
-	msg.Timestamp = time.Now()
-
-
-	if err := r.messageservice.SendMessage(c, &msg); err != nil {
+	messages, err := r.messageservice.GetMessages(c, senderID)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "Message sent successfully"})
+	c.JSON(http.StatusOK, gin.H{"messages": messages})
 }

@@ -8,4 +8,5 @@ func (r *routerImpl) DefineRoutes(router *gin.Engine) {
 	router.POST("/auth", r.Authorize)
 	router.POST("/refresh", r.RefreshToken)
 	router.POST("/messages", r.SendMessage)
+	router.GET("/get", r.GetMessages)
 }

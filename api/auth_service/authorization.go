@@ -33,27 +33,51 @@ func TokenType(token *jwt.Token, Type string) bool {
 	}
 	return false
 }
+
 func (s *serviceImpl) Authorize(token string) (bool, string, error) {
 	tokenString := token
 	if tokenString == "" {
 		return false, "", fmt.Errorf("missing or invalid authorization header")
 	}
 
-	// Check Access Token
 	accessToken, err := parseToken(tokenString, accessKey)
 	if err == nil && TokenType(accessToken, "access") {
 		return true, "access", nil
 	} else if err != nil {
-		log.Printf("Access token error: %v", err) // Debug log
+		log.Printf("Access token error: %v", err)
 	}
 
-	// Check Refresh Token
 	refreshToken, err := parseToken(tokenString, refreshKey)
-	if err == nil && TokenType(refreshToken, "refresh") {
-		return false, "refresh token", nil
-	} else if err != nil {
-		log.Printf("Refresh token error: %v", err) // Debug log
+	if err == nil {
+		if TokenType(refreshToken, "refresh") {
+			return false, "refresh token", nil
+		}
+	} else if strings.Contains(err.Error(), "expired") {
+		return false, "", fmt.Errorf("token is expired")
 	}
 
 	return false, "", fmt.Errorf("invalid token")
+}
+
+func (s *serviceImpl) DecodeToken(tokenString string) (string, error) {
+	token, _, err := jwt.NewParser().ParseUnverified(tokenString, jwt.MapClaims{})
+	if err != nil {
+		return "", fmt.Errorf("invalid token: %v", err)
+	}
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return "", fmt.Errorf("invalid token claims format")
+	}
+
+	idClaim, exists := claims["ID"]
+	if !exists {
+		return "", fmt.Errorf("id claim not found in token")
+	}
+
+	id, ok := idClaim.(string)
+	if !ok {
+		return "", fmt.Errorf("id claim is not a string")
+	}
+
+	return id, nil
 }

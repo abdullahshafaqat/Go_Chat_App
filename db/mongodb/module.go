@@ -8,6 +8,7 @@ import (
 
 type Database interface {
 	InsertMessage(c *gin.Context, msg *models.Message) error
+	GetMessages(c *gin.Context, senderID int) ([]models.Message, error)
 }
 
 type dbImpl struct {

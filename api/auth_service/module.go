@@ -13,6 +13,7 @@ type Service interface {
 	GenerateTokens(ID string) (string, string, error)
 	BearerToken(header string) string
 	VerifyRefreshToken(tokenString string) (string, error)
+	DecodeToken(tokenString string) (string, error)
 }
 
 type serviceImpl struct {

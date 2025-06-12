@@ -11,7 +11,7 @@ func (s *serviceImpl) GenerateTokens(ID string) (string, string, error) {
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"ID":   ID,
 		"type": "access",
-		"exp":  time.Now().Add(time.Minute * 3).Unix(),
+		"exp":  time.Now().Add(time.Minute * 50).Unix(),
 	})
 	fmt.Println("Generating tokens for ID:", ID)
 	accessTokenString, err := accessToken.SignedString(accessKey)

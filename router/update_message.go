@@ -17,32 +17,28 @@ func (r *routerImpl) UpdateMessage(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
+
 	isValid, _, err := r.authservice.Authorize(tokenString)
 	if err != nil || !isValid {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
+
 	senderID, err := strconv.Atoi(userID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user ID format"})
 		return
 	}
 
-	messageID := c.Param("_id")
-
-	var msg models.Message
-	if err := c.ShouldBindJSON(&msg); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+	var request models.UpdateMessageRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
 		return
 	}
 
-	updatedMsg, err := r.messageservice.UpdateMessage(c, messageID, senderID, &msg)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update message"})
-		return
-	}
+	updatedMsg, _ := r.messageservice.UpdateMessage(c, request.ID, senderID, request.Message)
+
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Message updated successfully",
-		"data":    updatedMsg,
+		"Message updated successfully": updatedMsg,
 	})
 }

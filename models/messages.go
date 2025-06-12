@@ -14,3 +14,8 @@ type Message struct {
 	Timestamp  time.Time          `json:"timestamp,omitempty" bson:"timestamp,omitempty"`
 }
 
+
+type UpdateMessageRequest struct {
+	ID      string `json:"id" binding:"required"`
+	Message string `json:"message" binding:"required"`
+}

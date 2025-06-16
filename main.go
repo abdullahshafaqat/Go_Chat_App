@@ -32,8 +32,8 @@ func main() {
 	r := gin.Default()
 	routerLayer.DefineRoutes(r)
 
-	log.Println("Server running on :8080")
-	if err := r.Run(":8080"); err != nil {
+	log.Println("Server running on :8003")
+	if err := r.Run(":8003"); err != nil {
 		log.Fatal(err)
 	}
 }

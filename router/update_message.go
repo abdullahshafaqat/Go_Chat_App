@@ -9,22 +9,15 @@ import (
 )
 
 func (r *routerImpl) UpdateMessage(c *gin.Context) {
-	authHeader := c.GetHeader("Authorization")
-	tokenString := r.authservice.BearerToken(authHeader)
 
-	userID, err := r.authservice.DecodeToken(tokenString)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "user ID not found in context"})
 		return
 	}
 
-	isValid, _, err := r.authservice.Authorize(tokenString)
-	if err != nil || !isValid {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
-		return
-	}
-
-	senderID, err := strconv.Atoi(userID)
+	
+	senderID, err := strconv.Atoi(userID.(string))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user ID format"})
 		return
@@ -36,9 +29,14 @@ func (r *routerImpl) UpdateMessage(c *gin.Context) {
 		return
 	}
 
-	updatedMsg, _ := r.messageservice.UpdateMessage(c, request.ID, senderID, request.Message)
+	updatedMsg, err := r.messageservice.UpdateMessage(c, request.ID, senderID, request.Message)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"Message updated successfully": updatedMsg,
+		"message": "Message updated successfully",
+		"data":    updatedMsg,
 	})
 }

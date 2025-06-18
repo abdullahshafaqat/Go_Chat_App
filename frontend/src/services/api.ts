@@ -162,15 +162,16 @@ export const chatApi = {
 
   
    sendMessage: async (data: { 
-    content: string; 
-    recipient_id?: string | number // Allow both string and number
-  }) => {
-    const response = await api.post('/messages', {
-      content: data.content,
-      recipient_id: data.recipient_id ? String(data.recipient_id) : undefined
-    });
-    return response.data;
-  },
+  content: string; 
+  recipient_id?: string | number 
+}) => {
+  const response = await api.post('/messages', {
+    content: data.content,
+    receiver_id: data.recipient_id ? Number(data.recipient_id) : undefined // FIXED!
+  });
+  return response.data;
+},
+
   
   updateMessage: async (messageId: string, content: string) => {
     try {

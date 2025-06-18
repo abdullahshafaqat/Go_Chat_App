@@ -6,6 +6,7 @@ import (
 
 	authservice "github.com/abdullahshafaqat/Go_Chat_App.git/api/auth_service"
 	messageservice "github.com/abdullahshafaqat/Go_Chat_App.git/api/message_service"
+	websocketservice "github.com/abdullahshafaqat/Go_Chat_App.git/api/web_socket_service"
 	mongodb "github.com/abdullahshafaqat/Go_Chat_App.git/db/mongodb" // Add this import
 	db "github.com/abdullahshafaqat/Go_Chat_App.git/db/postgres"
 	"github.com/abdullahshafaqat/Go_Chat_App.git/router"

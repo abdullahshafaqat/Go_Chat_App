@@ -9,8 +9,14 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func (db *dbImpl) GetMessages(c *gin.Context, senderID int) ([]models.Message, error) {
-	filter := bson.M{"sender_id": senderID}
+func (db *dbImpl) GetMessages(c *gin.Context, userID int) ([]models.Message, error) {
+	filter := bson.M{
+		"$or": []bson.M{
+			{"sender_id": userID},
+			{"receiver_id": userID},
+		},
+	}
+
 	opts := options.Find().SetSort(bson.D{{Key: "timestamp", Value: -1}})
 
 	cursor, err := db.collection.Find(c, filter, opts)

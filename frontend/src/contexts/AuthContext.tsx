@@ -1,20 +1,20 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { authApi, clearAuth, getAuthToken } from '@/services/api';
+import { authApi, setAuthToken, clearAuth, getAuthToken } from '../api';
 import { toast } from '@/hooks/use-toast';
 
 interface User {
   id: string;
-  email: string;
   username: string;
+  email: string;
 }
 
 interface AuthContextType {
   user: User | null;
-  isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
-  signup: (email: string, password: string, username: string) => Promise<boolean>;
+  isAuthenticated: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  signup: (username: string, email: string, password: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -38,92 +38,88 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   useEffect(() => {
     const token = getAuthToken();
+    console.log('Checking for existing token:', token);
     if (token) {
-      
-      setUser({
-        id: 'current-user',
-        email: 'user@example.com',
-        username: 'User'
-      });
+      // You might want to validate the token with the backend here
+      // For now, we'll assume the token is valid if it exists
+      setUser({ id: '1', username: 'User', email: 'user@example.com' });
     }
     setIsLoading(false);
   }, []);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (email: string, password: string) => {
     try {
       setIsLoading(true);
+      console.log('Attempting login with:', { email });
       const response = await authApi.login({ email, password });
+      console.log('Login response:', response);
       
-      setUser({
-        id: response.user_id || 'current-user',
-        email: email,
-        username: response.username || 'User'
-      });
+      const userData = response.user || { 
+        id: response.user_id || '1', 
+        username: response.username || 'User', 
+        email: email 
+      };
       
+      setUser(userData);
       toast({
-        title: "Welcome back!",
-        description: "You have successfully logged in.",
+        title: "Login Successful",
+        description: "Welcome back!",
       });
-      
-      return true;
     } catch (error: any) {
-      const message = error.response?.data?.message || 'Login failed. Please try again.';
+      console.error('Login error:', error);
       toast({
         title: "Login Failed",
-        description: message,
+        description: error.response?.data?.message || "Invalid credentials",
         variant: "destructive",
       });
-      return false;
+      throw error;
     } finally {
       setIsLoading(false);
     }
   };
 
-  const signup = async (email: string, password: string, username: string): Promise<boolean> => {
+  const signup = async (username: string, email: string, password: string) => {
     try {
       setIsLoading(true);
-      await authApi.signup({ email, password, username });
-      
+      console.log('Attempting signup with:', { username, email });
+      await authApi.signup({ username, email, password });
+      // Auto-login after successful signup
+      await login(email, password);
       toast({
-        title: "Account Created!",
-        description: "Please log in with your new account.",
+        title: "Account Created",
+        description: "Welcome! You've been automatically logged in.",
       });
-      
-      return true;
     } catch (error: any) {
-      const message = error.response?.data?.message || 'Signup failed. Please try again.';
+      console.error('Signup error:', error);
       toast({
         title: "Signup Failed",
-        description: message,
+        description: error.response?.data?.message || "Failed to create account",
         variant: "destructive",
       });
-      return false;
+      throw error;
     } finally {
       setIsLoading(false);
     }
   };
 
   const logout = () => {
+    console.log('Logging out user');
     clearAuth();
     setUser(null);
     toast({
       title: "Logged Out",
-      description: "You have been successfully logged out.",
+      description: "You've been successfully logged out.",
     });
   };
 
   const value: AuthContextType = {
     user,
-    isAuthenticated: !!user,
     isLoading,
+    isAuthenticated: !!user,
     login,
     signup,
     logout,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

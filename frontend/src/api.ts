@@ -28,7 +28,6 @@ const api: AxiosInstance = axios.create({
   },
 });
 
-
 api.interceptors.request.use(
   (config) => {
     if (authToken) {
@@ -40,7 +39,6 @@ api.interceptors.request.use(
     return Promise.reject(error);
   }
 );
-
 
 api.interceptors.response.use(
   response => response,
@@ -64,12 +62,10 @@ api.interceptors.response.use(
         const refreshToken = localStorage.getItem('refreshToken');
         if (!refreshToken) throw new Error("No refresh token available");
         
-        // Match your backend endpoint
         const response = await axios.post(`${BASE_URL}/refresh`, { 
           refresh_token: refreshToken 
         });
         
-        // Match your backend response format
         const newAccessToken = response.data.access_token;
         setAuthToken(newAccessToken);
         processQueue(null, newAccessToken);
@@ -95,7 +91,6 @@ api.interceptors.response.use(
   }
 );
 
-
 export const setAuthToken = (token: string) => {
   authToken = token;
   localStorage.setItem('token', token);
@@ -109,16 +104,15 @@ export const clearAuth = () => {
 
 export const getAuthToken = () => authToken;
 
-
 export const authApi = {
   signup: async (data: { email: string; password: string; username: string }) => {
     const response = await api.post('/signup', data);
     return response.data;
   },
   
-   login: async (data: { email: string; password: string }) => {
+  login: async (data: { email: string; password: string }) => {
     const response = await api.post('/login', data);
-    if (response.data.access_token) {  // Changed from 'token' to 'access_token'
+    if (response.data.access_token) {
       setAuthToken(response.data.access_token);
       if (response.data.refresh_token) {
         localStorage.setItem('refreshToken', response.data.refresh_token);
@@ -127,9 +121,9 @@ export const authApi = {
     return response.data;
   },
   
- refresh: async () => {  // Changed from refreshKey to refresh
+  refresh: async () => {
     const refreshToken = localStorage.getItem('refreshToken');
-    const response = await api.post('/refresh', {  // Changed from /refresh_key
+    const response = await api.post('/refresh', {
       refresh_token: refreshToken 
     });
     return response.data;
@@ -142,41 +136,37 @@ type Message = {
   recipient_id: string;
   message: string;
   timestamp: string;
-  // Add or adjust fields as needed to match your backend response
 };
 
 export const chatApi = {
-    getMessages: async () => {
+  getMessages: async () => {
     const response = await api.get("/get_message");
-    // Map response to your frontend structure if needed
     return response.data.messages.map((msg: any) => ({
       ...msg,
-      content: msg.message // Map backend 'message' field to frontend 'content'
+      content: msg.message
     }));
   },
-   getConversation: async (recipientId: string): Promise<Message[]> => {
+  
+  getConversation: async (recipientId: string): Promise<Message[]> => {
     const response = await api.get(`/conversation/${recipientId}`);
     return response.data;
   },
-
-
   
-   sendMessage: async (data: { 
-  content: string; 
-  recipient_id?: string | number 
-}) => {
-  const response = await api.post('/messages', {
-    content: data.content,
-    receiver_id: data.recipient_id ? Number(data.recipient_id) : undefined // FIXED!
-  });
-  return response.data;
-},
-
+  sendMessage: async (data: { 
+    content: string; 
+    recipient_id?: string | number 
+  }) => {
+    const response = await api.post('/messages', {
+      content: data.content,
+      receiver_id: data.recipient_id ? Number(data.recipient_id) : undefined
+    });
+    return response.data;
+  },
   
   updateMessage: async (messageId: string, content: string) => {
     try {
       const response = await api.put(`/update/${messageId}`, {
-        message: content // Match backend request structure
+        message: content
       });
       return response.data;
     } catch (error) {
@@ -186,7 +176,6 @@ export const chatApi = {
   },
 };
 
-export default api;
 export const userApi = {
   getUser: async (userId: string) => {
     const response = await api.get(`/user/${userId}`);
@@ -203,3 +192,5 @@ export const userApi = {
     return response.data;
   },
 };
+
+export default api;

@@ -5,6 +5,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func (s *serviceImpl) GetMessages(c *gin.Context, senderID int) ([]models.Message, error) {
-	return s.mongodb.GetMessages(c, senderID)
+func (s *serviceImpl) GetMessages(c *gin.Context, userID int) ([]models.Message, error) {
+	return s.mongodb.GetMessages(c, userID)
 }

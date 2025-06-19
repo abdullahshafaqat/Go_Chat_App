@@ -8,7 +8,7 @@ import (
 
 type Service interface {
 	SendMessage(c *gin.Context, msg *models.Message) error
-	GetMessages(c *gin.Context, senderID int) ([]models.Message, error)
+	GetMessages(c *gin.Context, userID int) ([]models.Message, error)
 	UpdateMessage(c *gin.Context, messageID string, senderID int, NewMessage string) (*models.Message, error)
 }
 

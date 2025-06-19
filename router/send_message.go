@@ -1,6 +1,7 @@
 package router
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -18,11 +19,13 @@ func (r *routerImpl) SendMessage(c *gin.Context) {
 	}
 
 	var req models.SendMessageRequest
-
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid input"})
 		return
 	}
+
+
+	fmt.Println("Sending message to:", req.ReceiverID)
 
 	senderID, err := strconv.Atoi(userID.(string))
 	if err != nil {
@@ -31,7 +34,7 @@ func (r *routerImpl) SendMessage(c *gin.Context) {
 	}
 
 	msg := models.Message{
-		ID:         primitive.NewObjectID(), // Generate new ID here
+		ID:         primitive.NewObjectID(),
 		SenderID:   senderID,
 		ReceiverID: req.ReceiverID,
 		Message:    req.Content,

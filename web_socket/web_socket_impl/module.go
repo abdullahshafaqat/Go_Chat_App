@@ -1,10 +1,17 @@
 package websocketimpl
 
 import (
+	"errors"
 	"sync"
 
 	"github.com/abdullahshafaqat/Go_Chat_App.git/db/mongodb"
 	"github.com/gorilla/websocket"
+)
+
+var (
+	ErrClientNotFound       = errors.New("receiver client not found")
+	ErrConnectionClosed     = errors.New("connection closed")
+	ErrInvalidMessageFormat = errors.New("invalid message format")
 )
 
 type WebSocketService interface {

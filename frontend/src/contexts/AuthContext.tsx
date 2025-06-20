@@ -1,7 +1,7 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { authApi, setAuthToken, clearAuth, getAuthToken } from '../api';
 import { toast } from '@/hooks/use-toast';
+import { webSocketService } from '../services/websocket';
 
 interface User {
   id: string;
@@ -38,10 +38,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   useEffect(() => {
     const token = getAuthToken();
-    console.log('Checking for existing token:', token);
+    if (token && user) {
+      webSocketService.connect(token, (message) => {
+        console.log("New real-time message:", message);
+      });
+      return () => {
+        webSocketService.disconnect();
+      };
+    }
+  }, [user]);
+
+  useEffect(() => {
+    const token = getAuthToken();
     if (token) {
-      // You might want to validate the token with the backend here
-      // For now, we'll assume the token is valid if it exists
       setUser({ id: '1', username: 'User', email: 'user@example.com' });
     }
     setIsLoading(false);
@@ -50,23 +59,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (email: string, password: string) => {
     try {
       setIsLoading(true);
-      console.log('Attempting login with:', { email });
       const response = await authApi.login({ email, password });
-      console.log('Login response:', response);
-      
       const userData = response.user || { 
         id: response.user_id || '1', 
         username: response.username || 'User', 
         email: email 
       };
-      
       setUser(userData);
       toast({
         title: "Login Successful",
         description: "Welcome back!",
       });
     } catch (error: any) {
-      console.error('Login error:', error);
       toast({
         title: "Login Failed",
         description: error.response?.data?.message || "Invalid credentials",
@@ -81,16 +85,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signup = async (username: string, email: string, password: string) => {
     try {
       setIsLoading(true);
-      console.log('Attempting signup with:', { username, email });
       await authApi.signup({ username, email, password });
-      // Auto-login after successful signup
       await login(email, password);
       toast({
         title: "Account Created",
         description: "Welcome! You've been automatically logged in.",
       });
     } catch (error: any) {
-      console.error('Signup error:', error);
       toast({
         title: "Signup Failed",
         description: error.response?.data?.message || "Failed to create account",
@@ -103,7 +104,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const logout = () => {
-    console.log('Logging out user');
+    webSocketService.disconnect();
     clearAuth();
     setUser(null);
     toast({

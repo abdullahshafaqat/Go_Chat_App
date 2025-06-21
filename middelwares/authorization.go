@@ -2,6 +2,7 @@ package middelwares
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -159,18 +160,18 @@ func GetUserIDFromToken(tokenString string) (string, error) {
 
 func WSMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var tokenString string
 
-		
+		log.Printf("WebSocket connection attempt from %s", c.Request.RemoteAddr)
+
+		var tokenString string
 		tokenString = BearerToken(c.GetHeader("Authorization"))
 
-		
 		if tokenString == "" {
 			tokenString = c.Query("token")
 		}
 
-	
 		if tokenString == "" {
+			log.Printf("No token provided for WebSocket connection from %s", c.Request.RemoteAddr)
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"error":    "Missing authorization token",
 				"solution": "Include 'Authorization: Bearer <token>' header OR '?token=<token>' query parameter",
@@ -178,13 +179,13 @@ func WSMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		
 		token, err := parseToken(tokenString, accessKey)
 		if err != nil || !token.Valid {
 			errorMsg := "Invalid token"
 			if err != nil && strings.Contains(err.Error(), "expired") {
 				errorMsg = "Token expired"
 			}
+			log.Printf("Invalid token from %s: %v", c.Request.RemoteAddr, err)
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"error":   errorMsg,
 				"details": fmt.Sprintf("%v", err),
@@ -192,8 +193,8 @@ func WSMiddleware() gin.HandlerFunc {
 			return
 		}
 
-	
 		if !tokenType(token, "access") {
+			log.Printf("Wrong token type from %s", c.Request.RemoteAddr)
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"error":    "Invalid token type",
 				"solution": "Use an access token for WebSocket connections",
@@ -201,63 +202,66 @@ func WSMiddleware() gin.HandlerFunc {
 			return
 		}
 
-	
 		if claims, ok := token.Claims.(jwt.MapClaims); ok {
 			if userID, exists := claims["ID"]; exists {
-				c.Set("userID", userID)
+
+				userIDStr := fmt.Sprintf("%v", userID)
+				c.Set("userID", userIDStr)
+				log.Printf("Authenticated WebSocket connection for user %s", userIDStr)
 				c.Next()
 				return
 			}
 		}
 
+		log.Printf("Invalid token claims from %s", c.Request.RemoteAddr)
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 			"error": "Invalid token claims",
 		})
 	}
 }
 
-func BackendWSMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		tokenString := BearerToken(c.GetHeader("Authorization"))
-		if tokenString == "" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-				"error":    "Missing authorization header",
-				"solution": "Include 'Authorization: Bearer <token>' header",
-			})
-			return
-		}
+// func BackendWSMiddleware() gin.HandlerFunc {
+// 	return func(c *gin.Context) {
+// 		tokenString := BearerToken(c.GetHeader("Authorization"))
+// 		if tokenString == "" {
+// 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+// 				"error":    "Missing authorization header",
+// 				"solution": "Include 'Authorization: Bearer <token>' header",
+// 			})
+// 			return
+// 		}
 
-		token, err := parseToken(tokenString, refreshKey)
-		if err != nil || !token.Valid {
-			errorMsg := "Invalid token"
-			if err != nil && strings.Contains(err.Error(), "expired") {
-				errorMsg = "Token expired"
-			}
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-				"error":   errorMsg,
-				"details": err.Error(),
-			})
-			return
-		}
+// 		token, err := parseToken(tokenString, refreshKey)
+// 		if err != nil || !token.Valid {
+// 			errorMsg := "Invalid token"
+// 			if err != nil && strings.Contains(err.Error(), "expired") {
+// 				errorMsg = "Token expired"
+// 			}
+// 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+// 				"error":   errorMsg,
+// 				"details": err.Error(),
+// 			})
+// 			return
+// 		}
 
-		if !tokenType(token, "refresh") {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-				"error":    "Invalid token type",
-				"solution": "Use a refresh token for backend WebSocket connections",
-			})
-			return
-		}
+// 		if !tokenType(token, "refresh") {
+// 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+// 				"error":    "Invalid token type",
+// 				"solution": "Use a refresh token for backend WebSocket connections",
+// 			})
+// 			return
+// 		}
 
-		if claims, ok := token.Claims.(jwt.MapClaims); ok {
-			if userID, exists := claims["ID"]; exists {
-				c.Set("userID", userID)
-				c.Next()
-				return
-			}
-		}
+// 		if claims, ok := token.Claims.(jwt.MapClaims); ok {
+// 			if userID, exists := claims["ID"]; exists {
+// 				c.Set("userID", userID)
+// 				c.Next()
+// 				return
+// 			}
+// 		}
 
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-			"error": "Invalid token claims",
-		})
-	}
-}
+// 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+// 			"error": "Invalid token claims",
+// 		})
+// 	}
+// }

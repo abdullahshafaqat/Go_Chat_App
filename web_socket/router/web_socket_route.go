@@ -18,7 +18,6 @@ var upgrader = websocket.Upgrader{
 
 func (r *Router) HandleWebSocket() gin.HandlerFunc {
 	return func(c *gin.Context) {
-
 		userIDValue, exists := c.Get("userID")
 		if !exists {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found in token"})
@@ -44,7 +43,6 @@ func (r *Router) HandleWebSocket() gin.HandlerFunc {
 		}
 
 		log.Printf("WebSocket connection established for user: %d", userID)
-
 		websocketimpl.HandleConnection(userID, conn, r.WebSocketService)
 	}
 }

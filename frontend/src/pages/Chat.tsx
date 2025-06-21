@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { chatApi } from '../api';
 import { toast } from '@/hooks/use-toast';
 import { LogOut, MessageSquare, Send, User, Mail, Plus, Sparkles, RefreshCw } from 'lucide-react';
+import { webSocketService } from '../services/websocket';
 
 interface Message {
   id: string;
@@ -27,6 +27,28 @@ const Chat: React.FC = () => {
     recipient_id: '',
     content: ''
   });
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token || !user) return;
+
+    const handleIncomingMessage = (message: any) => {
+      setMessages(prev => [...prev, {
+        id: Date.now().toString(),
+        sender_id: message.sender_id,
+        recipient_id: user.id,
+        content: message.message,
+        message: message.message,
+        timestamp: new Date().toISOString()
+      }]);
+    };
+
+    webSocketService.connect(token, handleIncomingMessage);
+
+    return () => {
+      webSocketService.disconnect();
+    };
+  }, [user]);
 
   const fetchMessages = useCallback(async () => {
     try {
@@ -49,45 +71,55 @@ const Chat: React.FC = () => {
 
   useEffect(() => {
     fetchMessages();
-    // Removed the interval polling to stop continuous API requests
   }, [fetchMessages]);
 
   const handleSendMessage = async () => {
-    if (!newMessage.content.trim() || !newMessage.recipient_id.trim()) {
-      toast({
-        title: "Invalid message",
-        description: "Please enter both recipient ID and message content",
-        variant: "destructive",
-      });
-      return;
+  if (!newMessage.content.trim() || !newMessage.recipient_id.trim()) {
+    toast({
+      title: "Invalid message",
+      description: "Please enter both recipient ID and message content",
+      variant: "destructive",
+    });
+    return;
+  }
+
+  try {
+  
+    const receiverId = parseInt(newMessage.recipient_id, 10);
+    if (isNaN(receiverId)) {
+      throw new Error("Recipient ID must be a valid number");
     }
 
-    try {
-      console.log('Sending message:', newMessage);
-      await chatApi.sendMessage({
-        content: newMessage.content,
-        recipient_id: newMessage.recipient_id
-      });
-      
-      setNewMessage({ recipient_id: '', content: '' });
-      setShowNewMessage(false);
-      
-      toast({
-        title: "Message sent",
-        description: "Your message has been sent successfully",
-      });
-      
-      // Refresh messages after sending
-      fetchMessages();
-    } catch (error: any) {
-      console.error('Error sending message:', error);
-      toast({
-        title: "Failed to send message",
-        description: error.response?.data?.message || "Something went wrong",
-        variant: "destructive",
-      });
-    }
-  };
+    webSocketService.sendMessage({
+      receiver_id: receiverId,  // Now sending as number
+      message: newMessage.content
+    });
+
+    setMessages(prev => [...prev, {
+      id: Date.now().toString(),
+      sender_id: user?.id || '',
+      recipient_id: newMessage.recipient_id,
+      content: newMessage.content,
+      message: newMessage.content,
+      timestamp: new Date().toISOString()
+    }]);
+
+    setNewMessage({ recipient_id: '', content: '' });
+    setShowNewMessage(false);
+    
+    toast({
+      title: "Message sent",
+      description: "Your message has been sent successfully",
+    });
+  } catch (error: any) {
+    console.error('Error sending message:', error);
+    toast({
+      title: "Failed to send message",
+      description: error.message || "Something went wrong",
+      variant: "destructive",
+    });
+  }
+};
 
   const formatTimestamp = (timestamp: string) => {
     try {
@@ -109,7 +141,6 @@ const Chat: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 animate-fade-in">
-      {/* Enhanced App Bar */}
       <header className="bg-white/80 backdrop-blur-xl shadow-xl border-b border-gradient-to-r from-indigo-200 to-purple-200 sticky top-0 z-50 animate-slide-in-right">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
@@ -162,10 +193,8 @@ const Chat: React.FC = () => {
         </div>
       </header>
 
-      {/* Enhanced Main Chat Area */}
       <div className="max-w-5xl mx-auto p-6 animate-scale-in">
         <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl hover:shadow-3xl transition-all duration-700 transform hover:-translate-y-2 border border-indigo-100">
-          {/* Enhanced Messages List */}
           <div className="p-8 border-b border-gradient-to-r from-indigo-100 to-purple-100">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent hover:from-purple-600 hover:to-pink-600 transition-all duration-300 animate-fade-in">
@@ -241,7 +270,6 @@ const Chat: React.FC = () => {
             )}
           </div>
 
-          {/* Enhanced New Message Composition */}
           {showNewMessage && (
             <div className="p-8 border-b bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50 animate-fade-in">
               <h3 className="text-xl font-semibold mb-6 text-gray-800 flex items-center space-x-2">
@@ -298,7 +326,6 @@ const Chat: React.FC = () => {
           )}
         </div>
 
-        {/* Enhanced Floating Action Button */}
         {!showNewMessage && (
           <div className="fixed bottom-8 right-8 animate-fade-in">
             <Button

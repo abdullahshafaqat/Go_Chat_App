@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { authApi, setAuthToken, clearAuth, getAuthToken } from '../api';
 import { toast } from '@/hooks/use-toast';
-import { webSocketService } from '../services/websocket';
+import { webSocketService } from '../services/websocketservice';
 
 interface User {
   id: string;

@@ -8,8 +8,7 @@ import (
 
 type Service interface {
 	SignUp(c *gin.Context, user *models.UserSignup) error
-	Login(c *gin.Context, login *models.UserLogin) error
-
+	Login(c *gin.Context, email, password string) (string, error)
 }
 
 type serviceImpl struct {

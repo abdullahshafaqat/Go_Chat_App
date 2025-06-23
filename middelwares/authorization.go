@@ -2,7 +2,6 @@ package middelwares
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -39,7 +38,7 @@ func tokenType(token *jwt.Token, expectedType string) bool {
 	return false
 }
 
-// Update your AuthMiddleware to be more verbose
+
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenString := BearerToken(c.GetHeader("Authorization"))
@@ -51,7 +50,7 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// First try to parse as access token
+		
 		accessToken, err := parseToken(tokenString, accessKey)
 		if err == nil && tokenType(accessToken, "access") {
 			if claims, ok := accessToken.Claims.(jwt.MapClaims); ok {
@@ -63,7 +62,7 @@ func AuthMiddleware() gin.HandlerFunc {
 			}
 		}
 
-		// Then check if it's a refresh token
+	
 		refreshToken, err := parseToken(tokenString, refreshKey)
 		if err == nil && tokenType(refreshToken, "refresh") {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
@@ -73,7 +72,7 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// Handle specific error cases
+		
 		if err != nil {
 			errorMsg := "Invalid token"
 			if strings.Contains(err.Error(), "expired") {
@@ -93,11 +92,15 @@ func AuthMiddleware() gin.HandlerFunc {
 }
 
 func GenerateTokens(userID string) (string, string, error) {
+	now := time.Now()
+
 
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"ID":   userID,
-		"type": "access",
-		"exp":  time.Now().Add(time.Minute * 60).Unix(),
+		"ID":            userID,
+		"type":          "access",
+		"iat":           now.Unix(),
+		"exp":           now.Add(50 * time.Minute).Unix(),
+		"token_version": 1,
 	})
 
 	accessTokenString, err := accessToken.SignedString(accessKey)
@@ -106,9 +109,11 @@ func GenerateTokens(userID string) (string, string, error) {
 	}
 
 	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"ID":   userID,
-		"type": "refresh",
-		"exp":  time.Now().Add(time.Hour * 24 * 7).Unix(),
+		"ID":            userID,
+		"type":          "refresh",
+		"iat":           now.Unix(),
+		"exp":           now.Add(7 * 24 * time.Hour).Unix(),
+		"token_version": 1,
 	})
 
 	refreshTokenString, err := refreshToken.SignedString(refreshKey)
@@ -120,25 +125,30 @@ func GenerateTokens(userID string) (string, string, error) {
 }
 func VerifyRefreshToken(tokenString string) (string, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
 		return refreshKey, nil
 	})
 
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("token validation failed: %v", err)
 	}
 
 	if !token.Valid {
-		return "", fmt.Errorf("invalid refresh token")
+		return "", fmt.Errorf("invalid token")
 	}
 
 	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok || claims["ID"] == nil {
-		return "", fmt.Errorf("invalid claims in token")
+	if !ok {
+		return "", fmt.Errorf("invalid token claims")
 	}
 
-	id := claims["ID"].(string)
-	return id, nil
+	if claims["ID"] == nil || claims["type"] != "refresh" {
+		return "", fmt.Errorf("invalid token claims")
+	}
 
+	return claims["ID"].(string), nil
 }
 
 func getClaimID(token *jwt.Token) string {
@@ -160,108 +170,46 @@ func GetUserIDFromToken(tokenString string) (string, error) {
 
 func WSMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-
-		log.Printf("WebSocket connection attempt from %s", c.Request.RemoteAddr)
-
-		var tokenString string
-		tokenString = BearerToken(c.GetHeader("Authorization"))
-
+		
+		tokenString := strings.TrimPrefix(c.GetHeader("Authorization"), "Bearer ")
 		if tokenString == "" {
 			tokenString = c.Query("token")
 		}
 
-		if tokenString == "" {
-			log.Printf("No token provided for WebSocket connection from %s", c.Request.RemoteAddr)
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-				"error":    "Missing authorization token",
-				"solution": "Include 'Authorization: Bearer <token>' header OR '?token=<token>' query parameter",
-			})
+	
+		if tokenString == "" || tokenString == "undefined" {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Token required"})
 			return
 		}
 
-		token, err := parseToken(tokenString, accessKey)
-		if err != nil || !token.Valid {
-			errorMsg := "Invalid token"
-			if err != nil && strings.Contains(err.Error(), "expired") {
-				errorMsg = "Token expired"
+		
+		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("invalid signing method")
 			}
-			log.Printf("Invalid token from %s: %v", c.Request.RemoteAddr, err)
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-				"error":   errorMsg,
-				"details": fmt.Sprintf("%v", err),
-			})
-			return
-		}
-
-		if !tokenType(token, "access") {
-			log.Printf("Wrong token type from %s", c.Request.RemoteAddr)
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-				"error":    "Invalid token type",
-				"solution": "Use an access token for WebSocket connections",
-			})
-			return
-		}
-
-		if claims, ok := token.Claims.(jwt.MapClaims); ok {
-			if userID, exists := claims["ID"]; exists {
-
-				userIDStr := fmt.Sprintf("%v", userID)
-				c.Set("userID", userIDStr)
-				log.Printf("Authenticated WebSocket connection for user %s", userIDStr)
-				c.Next()
-				return
-			}
-		}
-
-		log.Printf("Invalid token claims from %s", c.Request.RemoteAddr)
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-			"error": "Invalid token claims",
+			return accessKey, nil
 		})
+
+		if err != nil || !token.Valid {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+			return
+		}
+
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if !ok {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token claims"})
+			return
+		}
+
+		userID, exists := claims["ID"].(string)
+		if !exists || userID == "" {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "User ID not found in token"})
+			return
+		}
+
+		// 4. Set user ID in context
+		c.Set("userID", userID)
+		c.Next()
 	}
 }
-
-// func BackendWSMiddleware() gin.HandlerFunc {
-// 	return func(c *gin.Context) {
-// 		tokenString := BearerToken(c.GetHeader("Authorization"))
-// 		if tokenString == "" {
-// 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-// 				"error":    "Missing authorization header",
-// 				"solution": "Include 'Authorization: Bearer <token>' header",
-// 			})
-// 			return
-// 		}
-
-// 		token, err := parseToken(tokenString, refreshKey)
-// 		if err != nil || !token.Valid {
-// 			errorMsg := "Invalid token"
-// 			if err != nil && strings.Contains(err.Error(), "expired") {
-// 				errorMsg = "Token expired"
-// 			}
-// 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-// 				"error":   errorMsg,
-// 				"details": err.Error(),
-// 			})
-// 			return
-// 		}
-
-// 		if !tokenType(token, "refresh") {
-// 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-// 				"error":    "Invalid token type",
-// 				"solution": "Use a refresh token for backend WebSocket connections",
-// 			})
-// 			return
-// 		}
-
-// 		if claims, ok := token.Claims.(jwt.MapClaims); ok {
-// 			if userID, exists := claims["ID"]; exists {
-// 				c.Set("userID", userID)
-// 				c.Next()
-// 				return
-// 			}
-// 		}
-
-// 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-// 			"error": "Invalid token claims",
-// 		})
-// 	}
-// }

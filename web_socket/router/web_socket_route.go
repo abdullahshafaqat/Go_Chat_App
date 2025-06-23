@@ -1,3 +1,4 @@
+// wsrouter/handler.go
 package wsrouter
 
 import (
@@ -11,8 +12,10 @@ import (
 )
 
 var upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
-		return true
+		return r.Header.Get("Origin") == "http://localhost:8080"
 	},
 }
 
@@ -20,29 +23,30 @@ func (r *Router) HandleWebSocket() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userIDValue, exists := c.Get("userID")
 		if !exists {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found in token"})
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
 			return
 		}
 
 		userIDStr, ok := userIDValue.(string)
 		if !ok {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "User ID is not a valid string"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID format"})
 			return
 		}
 
 		userID, err := strconv.Atoi(userIDStr)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 			return
 		}
 
 		conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
-			log.Println("WebSocket upgrade failed:", err)
+			log.Printf("WebSocket upgrade failed: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "WebSocket connection failed"})
 			return
 		}
 
-		log.Printf("WebSocket connection established for user: %d", userID)
-		websocketimpl.HandleConnection(userID, conn, r.WebSocketService)
+		log.Printf("New WebSocket connection for user: %d", userID)
+		go websocketimpl.HandleConnection(userID, conn, r.WebSocketService)
 	}
 }

@@ -2,23 +2,24 @@ package authservice
 
 import (
 	"errors"
+	"log"
 
-	"github.com/abdullahshafaqat/Go_Chat_App.git/models"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 )
 
-func (s *serviceImpl) Login(c *gin.Context, login *models.UserLogin) error {
-
-	id, dbPassword, err := s.database.GetUserByEmail(login.Email)
+func (s *serviceImpl) Login(c *gin.Context, email, password string) (string, error) {
+	id, dbPassword, err := s.database.GetUserByEmail(email)
 	if err != nil {
-		return errors.New("user not found")
+		log.Printf("Login failed for %s: user not found", email)
+		return "", errors.New("invalid credentials")
 	}
 
-
-	if err := bcrypt.CompareHashAndPassword([]byte(dbPassword), []byte(login.Password)); err != nil {
-		return errors.New("invalid password")
+	if err := bcrypt.CompareHashAndPassword([]byte(dbPassword), []byte(password)); err != nil {
+		log.Printf("Login failed for %s: invalid password", email)
+		return "", errors.New("invalid credentials")
 	}
-	login.ID = id
-	return nil
+
+	log.Printf("Login successful for %s (ID: %s)", email, id)
+	return id, nil
 }

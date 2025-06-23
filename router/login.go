@@ -1,6 +1,7 @@
 package router
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/abdullahshafaqat/Go_Chat_App.git/middelwares"
@@ -9,27 +10,29 @@ import (
 )
 
 func (r *routerImpl) Login(c *gin.Context) {
-	var User models.UserLogin
-	if err := c.ShouldBindJSON(&User); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid input"})
-		return
-	}
+    var input models.UserLogin
+    if err := c.ShouldBindJSON(&input); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "invalid input"})
+        return
+    }
 
+    userID, err := r.authservice.Login(c, input.Email, input.Password)
+    if err != nil {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+        return
+    }
 
-	if err := r.authservice.Login(c, &User); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
+    accessToken, refreshToken, err := middelwares.GenerateTokens(userID)
+    if err != nil {
+        log.Printf("Token generation failed for %s: %v", input.Email, err)
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "authentication failed"})
+        return
+    }
 
-	
-	Access, refresh, err := middelwares.GenerateTokens(User.ID)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
-		return
-	}
+    log.Printf("Generated tokens for %s (ID: %s)", input.Email, userID)
 
-	c.JSON(http.StatusOK, gin.H{
-		"access_token":  Access,
-		"refresh_token": refresh,
-	})
+    c.JSON(http.StatusOK, gin.H{
+        "access_token":  accessToken,
+        "refresh_token": refreshToken,
+    })
 }

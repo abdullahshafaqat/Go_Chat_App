@@ -7,7 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { chatApi } from '../api';
 import { toast } from '@/hooks/use-toast';
 import { LogOut, MessageSquare, Send, User, Mail, Plus, Sparkles, RefreshCw } from 'lucide-react';
-import { webSocketService } from '../services/websocket';
+import { webSocketService } from '../services/websocketservice';
 
 interface Message {
   id: string;
@@ -58,7 +58,6 @@ const Chat: React.FC = () => {
       console.log('Fetched messages:', fetchedMessages);
       setMessages(fetchedMessages);
     } catch (error: any) {
-      console.error('Error fetching messages:', error);
       toast({
         title: "Failed to load messages",
         description: error.response?.data?.message || "Something went wrong",

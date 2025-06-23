@@ -20,13 +20,13 @@ func (r *routerImpl) RefreshToken(c *gin.Context) {
 		return
 	}
 
-	newAccessToken, _, err := middelwares.GenerateTokens(userID)
+	accessToken, _, err := middelwares.GenerateTokens(userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not generate new token"})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"access_token": newAccessToken,
+		"access_token": accessToken,
 	})
 }

@@ -1,88 +1,82 @@
 package websocketimpl
 
 import (
+	"context"
 	"encoding/json"
 	"log"
+	"time"
 
+	wsmodels "github.com/abdullahshafaqat/Go_Chat_App.git/web_socket/models"
 	"github.com/gorilla/websocket"
 )
-
-type IncomingMessage struct {
-	ReceiverID int    `json:"receiver_id"`
-	Message    string `json:"message"`
-}
-
 func HandleConnection(userID int, conn *websocket.Conn, wsService WebSocketService) {
 
-	wsService.AddClient(userID, conn)
+	if err := wsService.AddClient(userID, conn); err != nil {
+		log.Printf("Failed to add client %d: %v", userID, err)
+		conn.Close()
+		return
+	}
 
 	defer func() {
 		wsService.RemoveClient(userID)
 		conn.Close()
-		log.Printf("Connection closed for user: %d", userID)
+		log.Printf("Connection closed for user %d", userID)
 	}()
-
-	welcomeMsg := map[string]interface{}{
-		"type":    "connection",
-		"message": "Connected successfully",
-		"user_id": userID,
-	}
-	if err := conn.WriteJSON(welcomeMsg); err != nil {
-		log.Printf("Error sending welcome message to user %d: %v", userID, err)
-		return
-	}
 
 	for {
 		_, msgBytes, err := conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Printf("WebSocket error for user %d: %v", userID, err)
+				log.Printf("User %d unexpected disconnect: %v", userID, err)
 			}
 			break
 		}
 
-		log.Printf("Received message from user %d: %s", userID, string(msgBytes))
-
-		var incomingMsg IncomingMessage
+		var incomingMsg wsmodels.IncomingMessage
 		if err := json.Unmarshal(msgBytes, &incomingMsg); err != nil {
-			log.Printf("Error parsing message from user %d: %v", userID, err)
-
-			errorMsg := map[string]interface{}{
-				"type":    "error",
-				"message": "Invalid message format",
-			}
-			conn.WriteJSON(errorMsg)
+			sendError(conn, "Invalid message format")
 			continue
 		}
 
-		if incomingMsg.ReceiverID == 0 || incomingMsg.Message == "" {
-			log.Printf("Invalid message from user %d: missing receiver_id or message", userID)
+		
+		var lastErr error
+		for i := 0; i < MaxRetryCount; i++ {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			err = wsService.BroadcastMessage(ctx, userID, incomingMsg)
+			cancel()
 
-			errorMsg := map[string]interface{}{
-				"type":    "error",
-				"message": "receiver_id and message are required",
+			if err == nil {
+				sendConfirmation(conn, "Message delivered")
+				break
 			}
-			conn.WriteJSON(errorMsg)
-			continue
+
+			lastErr = err
+			log.Printf("Broadcast attempt %d failed for user %d: %v", i+1, userID, err)
+			time.Sleep(time.Second * time.Duration(i+1))
 		}
 
-		err = wsService.BroadcastMessage(userID, incomingMsg.ReceiverID, incomingMsg.Message)
-		if err != nil {
-			log.Printf("Error broadcasting message from user %d to user %d: %v",
-				userID, incomingMsg.ReceiverID, err)
-
-			errorMsg := map[string]interface{}{
-				"type":    "error",
-				"message": "Failed to deliver message: " + err.Error(),
-			}
-			conn.WriteJSON(errorMsg)
-		} else {
-
-			confirmMsg := map[string]interface{}{
-				"type":    "confirmation",
-				"message": "Message delivered successfully",
-			}
-			conn.WriteJSON(confirmMsg)
+		if lastErr != nil {
+			log.Printf("Final broadcast failed for user %d: %v", userID, lastErr)
+			sendError(conn, "Failed to deliver message")
 		}
 	}
+}
+
+func sendError(conn *websocket.Conn, message string) {
+	sendJSON(conn, map[string]interface{}{
+		"type":    "error",
+		"message": message,
+	})
+}
+
+func sendConfirmation(conn *websocket.Conn, message string) {
+	sendJSON(conn, map[string]interface{}{
+		"type":    "confirmation",
+		"message": message,
+	})
+}
+
+func sendJSON(conn *websocket.Conn, v interface{}) error {
+	conn.SetWriteDeadline(time.Now().Add(WriteWait))
+	return conn.WriteJSON(v)
 }

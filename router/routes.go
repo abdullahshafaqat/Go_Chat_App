@@ -24,7 +24,7 @@ func (r *routerImpl) DefineRoutes(router *gin.Engine) {
 	protected := router.Group("/")
 	protected.Use(middelwares.AuthMiddleware()) 
 	{
-		protected.POST("/messages", r.SendMessage)
+		protected.POST("/send_messages", r.SendMessage)
 		protected.GET("/get_message", r.GetMessages)
 		protected.GET("/update/:_id", r.UpdateMessage)
 	}

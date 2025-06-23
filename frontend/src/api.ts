@@ -156,7 +156,7 @@ export const chatApi = {
     content: string; 
     recipient_id?: string | number 
   }) => {
-    const response = await api.post('/messages', {
+    const response = await api.post('/send_messages', {
       content: data.content,
       receiver_id: data.recipient_id ? Number(data.recipient_id) : undefined
     });

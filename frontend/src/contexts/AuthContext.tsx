@@ -1,10 +1,11 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { authApi, setAuthToken, clearAuth, getAuthToken } from '../api';
-import { toast } from '@/hooks/use-toast';
-import { webSocketService } from '../services/websocketservice';
+// src/contexts/AuthContext.tsx
+import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { authApi, setAuthToken, clearAuth, getAuthToken } from "../services/api";
+import { toast } from "@/hooks/use-toast";
+import { webSocketService } from "../services/websocketservice";
 
 interface User {
-  id: string;
+  id: number;
   username: string;
   email: string;
 }
@@ -22,54 +23,51 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+  if (!context) {
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };
 
-interface AuthProviderProps {
-  children: ReactNode;
-}
-
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const token = getAuthToken();
-    if (token && user) {
-      webSocketService.connect(token, (message) => {
-        console.log("New real-time message:", message);
-      });
-      return () => {
-        webSocketService.disconnect();
-      };
-    }
-  }, [user]);
-
-  useEffect(() => {
-    const token = getAuthToken();
     if (token) {
-      setUser({ id: '1', username: 'User', email: 'user@example.com' });
+      // Get profile data or decode token to retrieve user info
+      setUser({ id: 1, username: "User", email: "user@example.com" }); // Load real profile data here
     }
     setIsLoading(false);
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      const token = getAuthToken();
+      if (token) {
+        webSocketService.connect(token, (message) => {
+          console.log("Incoming message:", message);
+        });
+      }
+      return () => webSocketService.disconnect();
+    }
+  }, [user]);
 
   const login = async (email: string, password: string) => {
     try {
       setIsLoading(true);
       const response = await authApi.login({ email, password });
-      const userData = response.user || { 
-        id: response.user_id || '1', 
-        username: response.username || 'User', 
-        email: email 
+      const id = response.user_id ? parseInt(response.user_id, 10) : 1;
+
+      const userData: User = {
+        id,
+        username: response.username || "User",
+        email,
       };
       setUser(userData);
-      toast({
-        title: "Login Successful",
-        description: "Welcome back!",
-      });
+
+      toast({ title: "Login Successful", description: "Welcome back!" });
     } catch (error: any) {
       toast({
         title: "Login Failed",
@@ -86,17 +84,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setIsLoading(true);
       await authApi.signup({ username, email, password });
-      await login(email, password);
-      toast({
-        title: "Account Created",
-        description: "Welcome! You've been automatically logged in.",
-      });
+      await login(email, password); // auto-login after signup
+      toast({ title: "Account Created", description: "Welcome! You've been logged in." });
     } catch (error: any) {
-      toast({
-        title: "Signup Failed",
-        description: error.response?.data?.message || "Failed to create account",
-        variant: "destructive",
-      });
+      toast({ title: "Signup Failed", description: error.response?.data?.message || "Error creating account", variant: "destructive" });
       throw error;
     } finally {
       setIsLoading(false);
@@ -107,20 +98,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     webSocketService.disconnect();
     clearAuth();
     setUser(null);
-    toast({
-      title: "Logged Out",
-      description: "You've been successfully logged out.",
-    });
+    toast({ title: "Logged Out", description: "You have successfully logged out." });
   };
 
-  const value: AuthContextType = {
-    user,
-    isLoading,
-    isAuthenticated: !!user,
-    login,
-    signup,
-    logout,
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{ user, isLoading, isAuthenticated: !!user, login, signup, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
 };

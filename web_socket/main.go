@@ -16,7 +16,7 @@ import (
 )
 
 func main() {
-	
+
 	mongoCollection := mongodb.ConnectToDb()
 	defer func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -28,13 +28,10 @@ func main() {
 
 	log.Println("Successfully connected to MongoDB")
 
-	
 	wsService := websocketimpl.NewWebSocketService(mongodb.NewDB(mongoCollection))
 	messageService := messageservice.NewMessageService(mongodb.NewDB(mongoCollection))
 
-	
 	websocketRouter := wsrouter.WSRouter(messageService, wsService)
-
 
 	server := &http.Server{
 		Addr:    ":8004",

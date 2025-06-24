@@ -1,4 +1,4 @@
-package websocketimpl
+package websocketservice
 
 import (
 	"context"
@@ -24,6 +24,7 @@ type Client struct {
 	closeChan chan struct{}
 }
 
+
 type WebSocketService interface {
 	AddClient(userID int, conn *websocket.Conn) error
 	RemoveClient(userID int)
@@ -31,6 +32,7 @@ type WebSocketService interface {
 	BroadcastMessage(ctx context.Context, senderID int, msg wsmodels.IncomingMessage) error
 	GetOnlineUsers() []int
 }
+
 
 type webSocketService struct {
 	clients map[int]*Client
@@ -44,3 +46,4 @@ func NewWebSocketService(message mongodb.Database) WebSocketService {
 		message: message,
 	}
 }
+

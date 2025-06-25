@@ -1,78 +1,48 @@
-import { toast } from "@/hooks/use-toast";
-
-interface WebSocketMessage {
+// src/services/websocketservice.ts
+type Message = {
+  sender_id: number;
   receiver_id: number;
   message: string;
-}
+  timestamp: string;
+};
+
+type MessageHandler = (message: Message) => void;
 
 class WebSocketService {
-  private static instance: WebSocketService;
-  private socket: WebSocket | null = null;
-  private messageCallback: ((message: any) => void) | null = null;
-  private reconnectAttempts = 0;
-  private maxReconnectAttempts = 5;
+  private ws: WebSocket | null = null;
+  private onMessageCallback?: MessageHandler;
 
-  private constructor() {}
+  connect(token: string, onMessageCallback: MessageHandler) {
+    this.onMessageCallback = onMessageCallback;
+    this.ws = new WebSocket(`ws://localhost:8004/protected/ws?token=${token}`);
 
-  public static getInstance(): WebSocketService {
-    if (!WebSocketService.instance) {
-      WebSocketService.instance = new WebSocketService();
-    }
-    return WebSocketService.instance;
-  }
-
-  public connect(token: string, onMessage: (message: any) => void) {
-    if (this.socket) return;
-
-    this.messageCallback = onMessage;
-    this.socket = new WebSocket(`ws://localhost:8004/protected/ws?token=${token}`);
-
-    this.socket.onopen = () => {
-      console.log("WebSocket connected");
-      this.reconnectAttempts = 0;
-      toast({
-        title: "Connected",
-        description: "Real-time chat is now active",
-      });
-    };
-
-    this.socket.onmessage = (event) => {
+    this.ws.onmessage = (evt) => {
       try {
-        const message = JSON.parse(event.data);
-        if (this.messageCallback) this.messageCallback(message);
-      } catch (error) {
-        console.error("Error parsing WebSocket message:", error);
+        const data: Message = JSON.parse(evt.data);
+        if (this.onMessageCallback) {
+          this.onMessageCallback(data); // Push into UI
+        }
+      } catch (e) {
+        console.error("Error parsing WS message:", e);
       }
     };
 
-    this.socket.onclose = () => {
-      console.log("WebSocket disconnected");
-      this.socket = null;
-      if (this.reconnectAttempts < this.maxReconnectAttempts) {
-        this.reconnectAttempts++;
-        setTimeout(() => this.connect(token, onMessage), 3000);
-      }
-    };
-
-    this.socket.onerror = (error) => {
-      console.error("WebSocket error:", error);
-    };
+    this.ws.onerror = (err) => console.error("WebSocket error:", err);
+    this.ws.onclose = () => console.info("WebSocket closed");
   }
 
-  public sendMessage(message: WebSocketMessage) {
-    if (this.socket?.readyState === WebSocket.OPEN) {
-      this.socket.send(JSON.stringify(message));
+  sendMessage(payload: { receiver_id: number; message: string }) {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify(payload));
     } else {
-      console.error("WebSocket not connected");
+      console.error("WebSocket not connected.");
     }
   }
 
-  public disconnect() {
-    if (this.socket) {
-      this.socket.close();
-      this.socket = null;
-    }
+  disconnect() {
+    this.ws?.close();
+    this.ws = null;
   }
 }
 
-export const webSocketService = WebSocketService.getInstance();
+export const webSocketService = new WebSocketService();

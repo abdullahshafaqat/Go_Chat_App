@@ -139,26 +139,36 @@ type Message = {
 };
 
 export const chatApi = {
-  getMessages: async () => {
-    const response = await api.get("/get_message");
-    return response.data.messages.map((msg: any) => ({
-      ...msg,
-      content: msg.message
+ getMessages: async () => {
+  const response = await api.get("/get_message");
+  return response.data.messages.map((msg: any) => ({
+    id: msg.id,
+    sender_id: msg.sender_id,
+    receiver_id: msg.receiver_id,
+    message: msg.message, // <- mapping this to "content"
+    timestamp: msg.timestamp,
+  }));
+},
+
+
+  getConversation: async (receiverId: string | number): Promise<Message[]> => {
+    const response = await api.get(`/conversation/${receiverId}`);
+    return response.data.map((msg: any) => ({
+      id: msg.id,
+      sender_id: msg.sender_id,
+      receiver_id: msg.receiver_id,
+      content: msg.message,
+      timestamp: msg.timestamp,
     }));
-  },
-  
-  getConversation: async (recipientId: string): Promise<Message[]> => {
-    const response = await api.get(`/conversation/${recipientId}`);
-    return response.data;
   },
   
   sendMessage: async (data: { 
     content: string; 
-    recipient_id?: string | number 
+    reciever_id?: string | number 
   }) => {
     const response = await api.post('/send_messages', {
       content: data.content,
-      receiver_id: data.recipient_id ? Number(data.recipient_id) : undefined
+      receiver_id: data.reciever_id ? Number(data.reciever_id) : undefined
     });
     return response.data;
   },

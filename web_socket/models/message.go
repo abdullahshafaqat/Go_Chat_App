@@ -10,8 +10,8 @@ type MessageResponse struct {
 }
 
 type IncomingMessage struct {
-    ReceiverID int    `json:"receiver_id" validate:"required"`
-    Message    string `json:"message" validate:"required,min=1,max=1024"`
+    ReceiverID int    `json:"receiver_id"`
+    Message    string `json:"message"`
 }
 
 type ConnectionStatus struct {

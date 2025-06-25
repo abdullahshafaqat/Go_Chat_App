@@ -1,8 +1,9 @@
-package websocketimpl
+package websocketservice
 
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -20,7 +21,6 @@ func (w *webSocketService) AddClient(userID int, conn *websocket.Conn) error {
 	w.lock.Lock()
 	defer w.lock.Unlock()
 
-	
 	if existingClient, exists := w.clients[userID]; exists {
 		close(existingClient.closeChan)
 		existingClient.conn.Close()
@@ -47,10 +47,8 @@ func (w *webSocketService) AddClient(userID int, conn *websocket.Conn) error {
 	w.clients[userID] = client
 	log.Printf("Client connected - UserID: %d, Active connections: %d", userID, len(w.clients))
 
-	
 	go w.writePump(userID, client)
 
-	
 	w.notifyConnectionStatus(userID, true)
 	return nil
 }
@@ -68,7 +66,7 @@ func (w *webSocketService) writePump(userID int, client *Client) {
 		case message, ok := <-client.send:
 			client.conn.SetWriteDeadline(time.Now().Add(WriteWait))
 			if !ok {
-				
+
 				client.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
@@ -109,7 +107,6 @@ func (w *webSocketService) RemoveClient(userID int) {
 		delete(w.clients, userID)
 		log.Printf("Client disconnected - UserID: %d", userID)
 
-	
 		w.notifyConnectionStatus(userID, false)
 	}
 }
@@ -127,10 +124,9 @@ func (w *webSocketService) notifyConnectionStatus(userID int, online bool) {
 	w.lock.RLock()
 	defer w.lock.RUnlock()
 
-	
 	for id, client := range w.clients {
 		if id == userID {
-			continue 
+			continue
 		}
 		select {
 		case client.send <- mustJSON(status):
@@ -147,81 +143,82 @@ func (w *webSocketService) GetClient(userID int) (*Client, bool) {
 	return client, exists
 }
 
-func (w *webSocketService) BroadcastMessage(ctx context.Context,senderID int,msg wsmodels.IncomingMessage,) error{
-    if len(msg.Message) > MaxMessageSize {
-        return ErrMessageTooLong
-    }
-
-
-    msgToStore := &models.Message{
-        ID:         primitive.NewObjectID(),
-        SenderID:   senderID,
-        ReceiverID: msg.ReceiverID,
-        Message:    msg.Message,
-        Timestamp:  time.Now().UTC(),
-    }
-
-
-    ginCtx := &gin.Context{
-        Request: &http.Request{
-            URL:    &url.URL{Path: "/ws"},
-            Method: "WS",
-        },
-    }
-    ginCtx.Request = ginCtx.Request.WithContext(ctx)
-
-    if err := w.message.InsertMessage(ginCtx, msgToStore); err != nil {
-        log.Printf("Failed to store message: %v", err)
-        return fmt.Errorf("failed to store message")
-    }
-
-    wsMsg := wsmodels.MessageResponse{
-        SenderID:   senderID,
-        ReceiverID: msg.ReceiverID,
-        Message:    msg.Message,
-        Timestamp:  time.Now().UTC(),
-    }
-    w.lock.RLock()
-    receiverClient, receiverExists := w.clients[msg.ReceiverID]
-    w.lock.RUnlock()
-
-    if receiverExists {
-        select {
-        case receiverClient.send <- mustJSON(wsMsg):
-        default:
-            return ErrConnectionTimeout
-        }
-    }
-
-
-    w.lock.RLock()
-    senderClient, senderExists := w.clients[senderID]
-    w.lock.RUnlock()
-
-    if senderExists {
-        select {
-        case senderClient.send <- mustJSON(wsMsg):
-        default:
-            log.Printf("Could not send message back to sender %d", senderID)
-        }
-    }
-
-    return nil
-}
-
-
-func (w *webSocketService) GetOnlineUsers() []int {
-	w.lock.RLock()
-	defer w.lock.RUnlock()
-
-	users := make([]int, 0, len(w.clients))
-	for userID := range w.clients {
-		users = append(users, userID)
-	}
-	return users
-}
 
 func mustJSON(v interface{}) []byte {
-	data, _ := json.Marshal(v)
-	return data
+	b, err := json.Marshal(v)
+	if err != nil {
+		panic(err)
+	}
+	return b
+}
+func (w *webSocketService) BroadcastMessage(ctx context.Context, senderID int, msg wsmodels.IncomingMessage) error {
+	
+	if len(msg.Message) > MaxMessageSize {
+		return ErrMessageTooLong
+	}
+	if msg.ReceiverID == 0 {
+		return errors.New("receiver id is required")
+	}
+
+
+	msgToStore := &models.Message{
+		ID:         primitive.NewObjectID(),
+		SenderID:   senderID,
+		ReceiverID: msg.ReceiverID,
+		Message:    msg.Message,
+		Timestamp:  time.Now().UTC(),
+	}
+	
+	ginCtx := &gin.Context{
+		Request: &http.Request{
+			URL:    &url.URL{Path: "/ws"},
+			Method: "WS",
+		},
+	}
+	ginCtx.Request = ginCtx.Request.WithContext(ctx)
+
+	if err := w.message.InsertMessage(ginCtx, msgToStore); err != nil {
+		log.Printf("[ERROR] failed to store message: %v\n", err)
+		return fmt.Errorf("failed to store message")
+	}
+	log.Printf("[DEBUG] message stored successfully in DB (sender=%d, receiver=%d)", senderID, msg.ReceiverID)
+
+	wsMsg := wsmodels.MessageResponse{
+		SenderID:   senderID,
+		ReceiverID: msg.ReceiverID,
+		Message:    msg.Message,
+		Timestamp:  time.Now().UTC(),
+	}
+
+
+	w.lock.RLock()
+	receiverClient, receiverExists := w.clients[msg.ReceiverID]
+	w.lock.RUnlock()
+
+	log.Printf("[DEBUG] Receiver %d exists? %v\n", msg.ReceiverID, receiverExists)
+	if receiverExists {
+		select {
+		case receiverClient.send <- mustJSON(wsMsg):
+			log.Printf("[DEBUG] Sent message to receiver %d\n", msg.ReceiverID)
+		default:
+			return ErrConnectionTimeout
+		}
+	}
+
+
+	w.lock.RLock()
+	senderClient, senderExists := w.clients[senderID]
+	w.lock.RUnlock()
+
+	log.Printf("[DEBUG] Sender %d exists? %v\n", senderID, senderExists)
+	if senderExists {
+		select {
+		case senderClient.send <- mustJSON(wsMsg):
+			log.Printf("[DEBUG] Echoed message back to sender %d\n", senderID)
+		default:
+			log.Printf("[WARN] Could not send message back to sender %d\n", senderID)
+		}
+	}
+
+	return nil
 }

@@ -1,10 +1,11 @@
 package messageservice
 
 import (
+	"context"
+
 	"github.com/abdullahshafaqat/Go_Chat_App.git/models"
-	"github.com/gin-gonic/gin"
 )
 
-func (s *serviceImpl) SendMessage(c *gin.Context, msg *models.Message) error {
-	return s.mongodb.InsertMessage(c, msg)
+func (s *serviceImpl) SendMessage(ctx context.Context, msg *models.Message) error {
+	return s.mongodb.InsertMessage(ctx, msg)
 }

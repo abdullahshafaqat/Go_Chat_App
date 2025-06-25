@@ -1,13 +1,15 @@
 package messageservice
 
 import (
+	"context"
+
 	"github.com/abdullahshafaqat/Go_Chat_App.git/db/mongodb"
 	"github.com/abdullahshafaqat/Go_Chat_App.git/models"
 	"github.com/gin-gonic/gin"
 )
 
 type Service interface {
-	SendMessage(c *gin.Context, msg *models.Message) error
+	SendMessage(ctx context.Context, msg *models.Message) error
 	GetMessages(c *gin.Context, userID int) ([]models.Message, error)
 	UpdateMessage(c *gin.Context, messageID string, senderID int, NewMessage string) (*models.Message, error)
 }

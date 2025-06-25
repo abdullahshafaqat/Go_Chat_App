@@ -36,8 +36,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     const token = getAuthToken();
     if (token) {
-      // Get profile data or decode token to retrieve user info
-      setUser({ id: 1, username: "User", email: "user@example.com" }); // Load real profile data here
+      try {
+        const payloadBase64 = token.split(".")[1];
+        const payload = JSON.parse(atob(payloadBase64));
+        setUser({
+          id: Number(payload.ID),
+          username: payload.username || "",
+          email: payload.email || "",
+        });
+      } catch (error) {
+        console.error("[AuthProvider] Error decoding token:", error);
+        clearAuth();
+      }
     }
     setIsLoading(false);
   }, []);
@@ -47,10 +57,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const token = getAuthToken();
       if (token) {
         webSocketService.connect(token, (message) => {
-          console.log("Incoming message:", message);
+          console.log("[WS] Incoming message:", message);
         });
       }
-      return () => webSocketService.disconnect();
+      return () => {
+        webSocketService.disconnect();
+      };
     }
   }, [user]);
 
@@ -58,14 +70,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       setIsLoading(true);
       const response = await authApi.login({ email, password });
-      const id = response.user_id ? parseInt(response.user_id, 10) : 1;
 
-      const userData: User = {
-        id,
-        username: response.username || "User",
-        email,
-      };
-      setUser(userData);
+      // Save token & refresh token
+      setAuthToken(response.access_token);  // also sets Axios headers
+      localStorage.setItem('token', response.access_token);
+      localStorage.setItem('refreshToken', response.refresh_token);
+
+      const id = response.user_id ? parseInt(response.user_id, 10) : 0;
+      setUser({ id, username: response.username || "User", email });
 
       toast({ title: "Login Successful", description: "Welcome back!" });
     } catch (error: any) {
@@ -87,7 +99,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       await login(email, password); // auto-login after signup
       toast({ title: "Account Created", description: "Welcome! You've been logged in." });
     } catch (error: any) {
-      toast({ title: "Signup Failed", description: error.response?.data?.message || "Error creating account", variant: "destructive" });
+      toast({
+        title: "Signup Failed",
+        description: error.response?.data?.message || "Error creating account",
+        variant: "destructive",
+      });
       throw error;
     } finally {
       setIsLoading(false);

@@ -24,20 +24,19 @@ type Client struct {
 	closeChan chan struct{}
 }
 
-
 type WebSocketService interface {
 	AddClient(userID int, conn *websocket.Conn) error
 	RemoveClient(userID int)
 	GetClient(userID int) (*Client, bool)
 	BroadcastMessage(ctx context.Context, senderID int, msg wsmodels.IncomingMessage) error
-	GetOnlineUsers() []int
+	IsUserOnline(userID int) bool 
 }
 
-
 type webSocketService struct {
-	clients map[int]*Client
-	lock    sync.RWMutex
-	message mongodb.Database
+	clients           map[int]*Client
+	lock              sync.RWMutex
+	message           mongodb.Database
+	activeConnections int
 }
 
 func NewWebSocketService(message mongodb.Database) WebSocketService {
@@ -46,4 +45,3 @@ func NewWebSocketService(message mongodb.Database) WebSocketService {
 		message: message,
 	}
 }
-

@@ -1,6 +1,8 @@
 package mongodb
 
 import (
+	"context"
+
 	"github.com/abdullahshafaqat/Go_Chat_App.git/models"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
@@ -8,7 +10,7 @@ import (
 )
 
 type Database interface {
-	InsertMessage(c *gin.Context, msg *models.Message) error
+	InsertMessage(ctx context.Context, msg *models.Message) error
 	GetMessages(c *gin.Context, senderID int) ([]models.Message, error)
 	UpdateMessage(c *gin.Context, filter bson.M, update bson.M) (*models.Message, error)
 }

@@ -1,3 +1,4 @@
+// src/pages/Login.tsx
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -27,14 +28,11 @@ const Login: React.FC = () => {
     setIsSubmitting(true);
     setErrors({});
 
-    // Validate inputs
     const newErrors: { email?: string; password?: string } = {};
     if (!email) newErrors.email = 'Email is required';
     else if (!validateEmail(email)) newErrors.email = 'Please enter a valid email';
-
     if (!password) newErrors.password = 'Password is required';
     else if (password.length < 6) newErrors.password = 'Password must be at least 6 characters';
-
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       setIsSubmitting(false);
@@ -42,11 +40,9 @@ const Login: React.FC = () => {
     }
 
     try {
-      await login(email, password);
-      // Success toast is handled in AuthContext
-      navigate('/chat');
+      await login(email, password); // This will also save token & update user
+      navigate('/chat'); // navigate after login
     } catch (error) {
-      // Error toast is handled in AuthContext, but we can add additional handling here if needed
       console.error('Login error:', error);
     } finally {
       setIsSubmitting(false);
@@ -76,9 +72,7 @@ const Login: React.FC = () => {
           <h2 className="text-3xl font-extrabold text-gray-900 animate-fade-in bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
             Welcome Back
           </h2>
-          <p className="mt-2 text-sm text-gray-600 animate-fade-in delay-150">
-            Sign in to continue your journey
-          </p>
+          <p className="mt-2 text-sm text-gray-600 animate-fade-in delay-150">Sign in to continue your journey</p>
         </div>
 
         <form className="mt-4 space-y-6" onSubmit={handleSubmit}>
@@ -114,7 +108,6 @@ const Login: React.FC = () => {
                 </p>
               )}
             </div>
-            
             <div className="transform transition-all duration-300 hover:scale-105 animate-slide-in-right" style={{ animationDelay: '200ms' }}>
               <Label htmlFor="password" className="text-gray-700 font-medium flex items-center space-x-2">
                 <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -147,7 +140,6 @@ const Login: React.FC = () => {
               )}
             </div>
           </div>
-
           <div className="flex items-center justify-between animate-fade-in" style={{ animationDelay: '250ms' }}>
             <div className="flex items-center">
               <input
@@ -162,8 +154,8 @@ const Login: React.FC = () => {
               </label>
             </div>
             <div className="text-sm">
-              <Link 
-                to="/forgot-password" 
+              <Link
+                to="/forgot-password"
                 className="text-blue-600 hover:text-blue-800 transition-all duration-300 relative after:content-[''] after:absolute after:w-full after:scale-x-0 after:h-0.5 after:bottom-0 after:left-0 after:bg-blue-600 after:origin-bottom-right after:transition-transform after:duration-300 hover:after:scale-x-100 hover:after:origin-bottom-left"
                 onClick={(e) => isLoading ? e.preventDefault() : null}
               >
@@ -171,7 +163,6 @@ const Login: React.FC = () => {
               </Link>
             </div>
           </div>
-
           <div className="animate-fade-in" style={{ animationDelay: '300ms' }}>
             <Button
               type="submit"
@@ -196,7 +187,6 @@ const Login: React.FC = () => {
               </span>
             </Button>
           </div>
-
           <div className="text-center animate-fade-in" style={{ animationDelay: '400ms' }}>
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
@@ -207,14 +197,14 @@ const Login: React.FC = () => {
               </div>
             </div>
             <p className="mt-4 text-sm text-gray-600">
-              <Link 
-                to="/signup" 
+              <Link
+                to="/signup"
                 className="text-blue-600 hover:text-blue-800 transition-all duration-300 relative after:content-[''] after:absolute after:w-full after:scale-x-0 after:h-0.5 after:bottom-0 after:left-0 after:bg-blue-600 after:origin-bottom-right after:transition-transform after:duration-300 hover:after:scale-x-100 hover:after:origin-bottom-left font-medium inline-flex items-center space-x-1 group"
                 onClick={(e) => isLoading ? e.preventDefault() : null}
               >
                 <span>Create an account</span>
                 <svg className="w-4 h-4 transform group-hover:translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4l8 8-8 8M4 12h16" />
                 </svg>
               </Link>
             </p>

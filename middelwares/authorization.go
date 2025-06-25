@@ -2,8 +2,10 @@ package middelwares
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -38,7 +40,6 @@ func tokenType(token *jwt.Token, expectedType string) bool {
 	return false
 }
 
-
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenString := BearerToken(c.GetHeader("Authorization"))
@@ -50,7 +51,6 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		
 		accessToken, err := parseToken(tokenString, accessKey)
 		if err == nil && tokenType(accessToken, "access") {
 			if claims, ok := accessToken.Claims.(jwt.MapClaims); ok {
@@ -62,7 +62,6 @@ func AuthMiddleware() gin.HandlerFunc {
 			}
 		}
 
-	
 		refreshToken, err := parseToken(tokenString, refreshKey)
 		if err == nil && tokenType(refreshToken, "refresh") {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
@@ -72,7 +71,6 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		
 		if err != nil {
 			errorMsg := "Invalid token"
 			if strings.Contains(err.Error(), "expired") {
@@ -94,12 +92,11 @@ func AuthMiddleware() gin.HandlerFunc {
 func GenerateTokens(userID string) (string, string, error) {
 	now := time.Now()
 
-
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"ID":            userID,
 		"type":          "access",
 		"iat":           now.Unix(),
-		"exp":           now.Add(50 * time.Minute).Unix(),
+		"exp":           now.Add(24 * time.Hour).Unix(),
 		"token_version": 1,
 	})
 
@@ -170,45 +167,64 @@ func GetUserIDFromToken(tokenString string) (string, error) {
 
 func WSMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		
+		logPrefix := "[WSMiddleware]"
+
+	
 		tokenString := strings.TrimPrefix(c.GetHeader("Authorization"), "Bearer ")
 		if tokenString == "" {
 			tokenString = c.Query("token")
+			log.Printf("%s Token from query param", logPrefix)
 		}
 
-	
 		if tokenString == "" || tokenString == "undefined" {
+			log.Printf("%s No token provided", logPrefix)
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Token required"})
 			return
 		}
 
 		
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, fmt.Errorf("invalid signing method")
+				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 			}
 			return accessKey, nil
 		})
 
-		if err != nil || !token.Valid {
+		if err != nil {
+			log.Printf("%s Token validation failed: %v", logPrefix, err)
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
 			return
 		}
 
+		if !token.Valid {
+			log.Printf("%s Invalid token", logPrefix)
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+			return
+		}
+
+	
 		claims, ok := token.Claims.(jwt.MapClaims)
 		if !ok {
+			log.Printf("%s Invalid token claims", logPrefix)
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token claims"})
 			return
 		}
 
-		userID, exists := claims["ID"].(string)
-		if !exists || userID == "" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "User ID not found in token"})
+		var userID int
+		switch v := claims["ID"].(type) {
+		case float64: 
+			userID = int(v)
+		case string:
+			var err error
+			if userID, err = strconv.Atoi(v); err != nil {
+				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid user ID format"})
+				return
+			}
+		default:
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "user ID not found"})
 			return
 		}
 
-		// 4. Set user ID in context
 		c.Set("userID", userID)
 		c.Next()
 	}

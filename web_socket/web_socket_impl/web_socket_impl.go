@@ -21,7 +21,6 @@ func HandleConnection(userID int, conn *websocket.Conn, wsService WebSocketServi
 		conn.Close()
 		log.Printf("[HandleConnection] Connection closed for user %d\n", userID)
 	}()
-
 	for {
 		_, msgBytes, err := conn.ReadMessage()
 		if err != nil {
@@ -30,21 +29,17 @@ func HandleConnection(userID int, conn *websocket.Conn, wsService WebSocketServi
 			}
 			break
 		}
-
 		var incoming wsmodels.IncomingMessage
 		if err := json.Unmarshal(msgBytes, &incoming); err != nil {
 			log.Printf("[HandleConnection] Invalid message format from user %d\n", userID)
 			sendError(conn, "Invalid message format")
 			continue
 		}
-
 		log.Printf("[HandleConnection] User %d sending to %d: %s\n",
 			userID, incoming.ReceiverID, incoming.Message)
-
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		err = wsService.BroadcastMessage(ctx, userID, incoming)
 		cancel()
-
 		if err != nil {
 			log.Printf("[HandleConnection] Failed to deliver message: %v\n", err)
 			sendError(conn, "Failed to deliver message")
@@ -53,7 +48,6 @@ func HandleConnection(userID int, conn *websocket.Conn, wsService WebSocketServi
 		}
 	}
 }
-
 
 func sendError(conn *websocket.Conn, message string) {
 	sendJSON(conn, map[string]interface{}{
@@ -70,9 +64,8 @@ func sendConfirmation(conn *websocket.Conn, message string) {
 }
 
 func sendJSON(conn *websocket.Conn, v interface{}) {
-	conn.SetWriteDeadline(time.Now().Add(10 * time.Second)) // WriteWait
-	err := conn.WriteJSON(v)
-	if err != nil {
+	conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+	if err := conn.WriteJSON(v); err != nil {
 		log.Printf("[sendJSON] failed to write: %v\n", err)
 	}
 }

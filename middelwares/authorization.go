@@ -2,7 +2,6 @@ package middelwares
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -43,11 +42,13 @@ func tokenType(token *jwt.Token, expectedType string) bool {
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenString := BearerToken(c.GetHeader("Authorization"))
+
 		if tokenString == "" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-				"error":    "Missing authorization header",
-				"solution": "Include 'Authorization: Bearer <token>' header",
-			})
+			tokenString = c.Query("token")
+		}
+
+		if tokenString == "" {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Missing token"})
 			return
 		}
 
@@ -165,67 +166,52 @@ func GetUserIDFromToken(tokenString string) (string, error) {
 	return getClaimID(token), nil
 }
 
+// WSMiddleware parses `token` from query param, validates, and sets `userID`
 func WSMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		logPrefix := "[WSMiddleware]"
-
-	
-		tokenString := strings.TrimPrefix(c.GetHeader("Authorization"), "Bearer ")
+		tokenString := c.Query("token")
 		if tokenString == "" {
-			tokenString = c.Query("token")
-			log.Printf("%s Token from query param", logPrefix)
-		}
-
-		if tokenString == "" || tokenString == "undefined" {
-			log.Printf("%s No token provided", logPrefix)
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Token required"})
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"error": "Missing token in query param",
+			})
 			return
 		}
 
-		
-		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-			}
-			return accessKey, nil
-		})
-
-		if err != nil {
-			log.Printf("%s Token validation failed: %v", logPrefix, err)
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+		// Parse the token
+		token, err := parseToken(tokenString, accessKey) // reuse your existing parseToken
+		if err != nil || !tokenType(token, "access") {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"error": "Invalid access token",
+			})
 			return
 		}
 
-		if !token.Valid {
-			log.Printf("%s Invalid token", logPrefix)
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
-			return
-		}
-
-	
-		claims, ok := token.Claims.(jwt.MapClaims)
-		if !ok {
-			log.Printf("%s Invalid token claims", logPrefix)
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token claims"})
-			return
-		}
-
-		var userID int
-		switch v := claims["ID"].(type) {
-		case float64: 
-			userID = int(v)
-		case string:
-			var err error
-			if userID, err = strconv.Atoi(v); err != nil {
-				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid user ID format"})
+		// Extract ID
+		if claims, ok := token.Claims.(jwt.MapClaims); ok {
+			if idRaw, exists := claims["ID"]; exists {
+				// The token's ID may come as float64 or string
+				var userIDInt int
+				switch v := idRaw.(type) {
+				case float64:
+					userIDInt = int(v)
+				case string:
+					userIDInt, err = strconv.Atoi(strings.TrimSpace(v))
+					if err != nil {
+						c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "ID is not a valid number"})
+						return
+					}
+				default:
+					c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid ID type in token"})
+					return
+				}
+				c.Set("userID", userIDInt)
+				c.Next()
 				return
 			}
-		default:
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "user ID not found"})
-			return
 		}
 
-		c.Set("userID", userID)
-		c.Next()
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+			"error": "User ID not found in token",
+		})
 	}
 }

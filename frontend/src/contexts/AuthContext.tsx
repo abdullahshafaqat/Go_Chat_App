@@ -2,7 +2,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { authApi, setAuthToken, clearAuth, getAuthToken } from "../services/api";
 import { toast } from "@/hooks/use-toast";
-import { webSocketService } from "../services/websocketservice";
 
 interface User {
   id: number;
@@ -52,20 +51,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setIsLoading(false);
   }, []);
 
-  useEffect(() => {
-    if (user) {
-      const token = getAuthToken();
-      if (token) {
-        webSocketService.connect(token, (message) => {
-          console.log("[WS] Incoming message:", message);
-        });
-      }
-      return () => {
-        webSocketService.disconnect();
-      };
-    }
-  }, [user]);
-
   const login = async (email: string, password: string) => {
     try {
       setIsLoading(true);
@@ -111,7 +96,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const logout = () => {
-    webSocketService.disconnect();
     clearAuth();
     setUser(null);
     toast({ title: "Logged Out", description: "You have successfully logged out." });

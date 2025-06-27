@@ -40,9 +40,9 @@ type webSocketService struct {
 	activeConnections int
 }
 
-func NewWebSocketService(message mongodb.Database) WebSocketService {
-	return &webSocketService{
-		clients: make(map[int]*Client),
-		message: message,
-	}
-}
+// func NewWebSocketService(message mongodb.Database) WebSocketService {
+// 	return &webSocketService{
+// 		clients: make(map[int]*Client),
+// 		message: message,
+// 	}
+// }

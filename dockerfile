@@ -1,12 +1,19 @@
-FROM golang:1.21-alpine AS builder
-WORKDIR /app
-COPY go.mod go.sum ./
-RUN go mod download
-COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -o main .
+# GO_CHAT_APP/Dockerfile
+FROM golang:1.24.2-alpine
 
-FROM alpine:latest
+
 WORKDIR /app
-COPY --from=builder /app/main .
-EXPOSE 8003 8004
+
+RUN apk add --no-cache git
+
+COPY go.mod ./
+COPY go.sum ./
+RUN go mod download
+
+COPY . .
+
+RUN go build -o main .
+
+EXPOSE 8003
+
 CMD ["./main"]

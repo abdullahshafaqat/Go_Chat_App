@@ -1,36 +1,51 @@
+version: '3.8'
+
 services:
   backend:
     build:
       context: .
-      dockerfile: Dockerfile.backend
+      dockerfile: Dockerfile
+    container_name: chat_backend
     ports:
       - "8003:8003"
-      - "8004:8004"
-    environment:
-      - AC_SECRET=your_jwt_secret
-      - RF_SECRET=your_refresh_secret
-      - DB_URL=postgres://postgres:postgres@postgres:5432/postgres?sslmode=disable
-      - MONGO_URL=mongodb://mongo:27017
+    env_file:
+      - .env
+    depends_on:
+      - mongo
+      - postgres
 
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile.frontend
+      dockerfile: Dockerfile
+    container_name: chat_frontend
     ports:
       - "8080:8080"
-
-  postgres:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_PASSWORD: postgres
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+    depends_on:
+      - backend
 
   mongo:
-    image: mongo:6.0-jammy
+    image: mongo
+    container_name: chat_mongo
+    ports:
+      - "27017:27017"
     volumes:
-      - mongodb_data:/data/db
+      - mongo_data:/data/db
+
+  postgres:
+    image: postgres:14
+    container_name: chat_postgres
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
 
 volumes:
-  postgres_data:
-  mongodb_data:
+  mongo_data:
+  pg_data:

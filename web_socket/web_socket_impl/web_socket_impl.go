@@ -1,12 +1,9 @@
 package websocketservice
 
 import (
-	"context"
-	"encoding/json"
 	"log"
 	"time"
 
-	wsmodels "github.com/abdullahshafaqat/Go_Chat_App.git/web_socket/models"
 	"github.com/gorilla/websocket"
 )
 
@@ -16,56 +13,22 @@ func HandleConnection(userID int, conn *websocket.Conn, wsService WebSocketServi
 		conn.Close()
 		return
 	}
-	defer func() {
-		wsService.RemoveClient(userID)
-		conn.Close()
-		log.Printf("[HandleConnection] Connection closed for user %d\n", userID)
-	}()
-	for {
-		_, msgBytes, err := conn.ReadMessage()
-		if err != nil {
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Printf("[HandleConnection] User %d disconnected unexpectedly: %v\n", userID, err)
-			}
-			break
-		}
-		var incoming wsmodels.IncomingMessage
-		if err := json.Unmarshal(msgBytes, &incoming); err != nil {
-			log.Printf("[HandleConnection] Invalid message format from user %d\n", userID)
-			sendError(conn, "Invalid message format")
-			continue
-		}
-		log.Printf("[HandleConnection] User %d sending to %d: %s\n",
-			userID, incoming.ReceiverID, incoming.Message)
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		err = wsService.BroadcastMessage(ctx, userID, incoming)
-		cancel()
-		if err != nil {
-			log.Printf("[HandleConnection] Failed to deliver message: %v\n", err)
-			sendError(conn, "Failed to deliver message")
-		} else {
-			sendConfirmation(conn, "Message delivered")
-		}
-	}
-}
+	ticker := time.NewTicker(24 * time.Hour)
+	defer ticker.Stop()
+	
+	select {
+	case <-ticker.C:
+		log.Printf("[HandleConnection] Max connection time reached for user %d", userID)
+	case <-func() <-chan struct{} {
+		client, exists := wsService.GetClient(userID)
+		if !exists || client == nil {
 
-func sendError(conn *websocket.Conn, message string) {
-	sendJSON(conn, map[string]interface{}{
-		"type":    "error",
-		"message": message,
-	})
-}
-
-func sendConfirmation(conn *websocket.Conn, message string) {
-	sendJSON(conn, map[string]interface{}{
-		"type":    "confirmation",
-		"message": message,
-	})
-}
-
-func sendJSON(conn *websocket.Conn, v interface{}) {
-	conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
-	if err := conn.WriteJSON(v); err != nil {
-		log.Printf("[sendJSON] failed to write: %v\n", err)
+			ch := make(chan struct{})
+			close(ch)
+			return ch
+		}
+		return client.closeChan
+	}():
+		log.Printf("[HandleConnection] Close signal received for user %d", userID)
 	}
 }

@@ -1,6 +1,8 @@
 services:
   backend:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
     ports:
       - "8003:8003"
       - "8004:8004"
@@ -9,40 +11,25 @@ services:
       - RF_SECRET=your_refresh_secret
       - DB_URL=postgres://postgres:postgres@postgres:5432/postgres?sslmode=disable
       - MONGO_URL=mongodb://mongo:27017
-    depends_on:
-      - postgres
-      - mongo
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.frontend
     ports:
       - "8080:8080"
-    depends_on:
-      - backend
 
   postgres:
-    image: postgres:15-alpine  # Changed to alpine version
+    image: postgres:15-alpine
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=postgres
+      POSTGRES_PASSWORD: postgres
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
 
   mongo:
-    image: mongo:6.0-jammy  # Explicit Ubuntu-based image
+    image: mongo:6.0-jammy
     volumes:
       - mongodb_data:/data/db
-    healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
 
 volumes:
   postgres_data:

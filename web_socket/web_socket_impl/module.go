@@ -29,9 +29,10 @@ type WebSocketService interface {
 	RemoveClient(userID int)
 	GetClient(userID int) (*Client, bool)
 	BroadcastMessage(ctx context.Context, senderID int, msg wsmodels.IncomingMessage) error
-	IsUserOnline(userID int) bool 
+	IsUserOnline(userID int) bool
+	GetAllOnlineUsers() []int
+	BroadcastToAll(message interface{})
 }
-
 type webSocketService struct {
 	clients           map[int]*Client
 	lock              sync.RWMutex

@@ -1,14 +1,13 @@
 package router
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/abdullahshafaqat/Go_Chat_App.git/models"
-	wsmodels "github.com/abdullahshafaqat/Go_Chat_App.git/web_socket/models"
-
 	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 func (r *routerImpl) SendMessage(c *gin.Context) {
@@ -19,12 +18,11 @@ func (r *routerImpl) SendMessage(c *gin.Context) {
 	}
 
 	var req models.SendMessageRequest
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid input"})
 		return
 	}
-
-	fmt.Println("Sending message to:", req.ReceiverID)
 
 	senderID, err := strconv.Atoi(userID.(string))
 	if err != nil {
@@ -32,17 +30,21 @@ func (r *routerImpl) SendMessage(c *gin.Context) {
 		return
 	}
 
-	
-	incoming := wsmodels.IncomingMessage{
+	msg := models.Message{
+		ID:         primitive.NewObjectID(), // Generate new ID here
+		SenderID:   senderID,
 		ReceiverID: req.ReceiverID,
 		Message:    req.Content,
+		Timestamp:  time.Now(),
 	}
 
-
-	if err := r.webSocketService.BroadcastMessage(c.Request.Context(), senderID, incoming); err != nil {
+	if err := r.messageservice.SendMessage(c, &msg); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Message sent successfully"})
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Message sent successfully",
+		"data":    msg,
+	})
 }

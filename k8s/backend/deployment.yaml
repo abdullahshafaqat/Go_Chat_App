@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chat-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chat-backend
+  template:
+    metadata:
+      labels:
+        app: chat-backend
+    spec:
+      containers:
+        - name: chat-backend
+          image: chat_backend:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8003
+          env:
+            - name: DB_HOST
+              value: "postgres"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_USER
+              value: "postgres"
+            - name: DB_PASSWORD
+              value: "abdullah"
+            - name: DB_NAME
+              value: "my_db"
+            - name: AC_SECRET
+              value: "baf9146e2078c18a6c70afadd9c69762f9ca65803c913e4d9fd3c5b1fc805a86"
+            - name: RF_SECRET
+              value: "da2eb05878b2030ca7b90e72ca148c74893c0661f804804d93c20030623afc80"
+            - name: MONGO_URI
+              value: "mongodb://mongo:27017"
+            - name: PORT
+              value: "8003"

@@ -10,7 +10,7 @@ import (
 
 func (r *routerImpl) DefineRoutes(router *gin.Engine) {
 	router.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:8080"}, // React app origin
+		AllowOrigins:     []string{"*"}, 
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
@@ -22,7 +22,7 @@ func (r *routerImpl) DefineRoutes(router *gin.Engine) {
 	router.POST("/login", r.Login)
 	router.POST("/refresh", r.RefreshToken)
 	protected := router.Group("/")
-	protected.Use(middelwares.AuthMiddleware()) 
+	protected.Use(middelwares.AuthMiddleware())
 	{
 		protected.POST("/send_messages", r.SendMessage)
 		protected.GET("/get_message", r.GetMessages)

@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: chat-app-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+spec:
+  rules:
+    - host: chat-app.local
+      http:
+        paths:
+          - path: /()(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: chat-frontend
+                port:
+                  number: 8080
+          - path: /api(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: chat-backend
+                port:
+                  number: 8003

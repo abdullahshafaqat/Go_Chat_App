@@ -11,6 +11,11 @@ export default defineConfig({
   },
   server: {
     host: true,
-    allowedHosts: ['chat-app.local'],
+    port: 8080,
+    allowedHosts: ['localhost', '127.0.0.1', 'chat-app.local'], 
+  },
+  build: {
+    outDir: 'dist',
+    emptyOutDir: true,
   },
 })
